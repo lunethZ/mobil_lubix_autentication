@@ -1,8 +1,10 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
-import { Screen } from "../components/ui";
+import React, { useState, useEffect } from "react";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { Screen, Popup } from "../components/ui";
 import AppHeader from "../components/AppHeader";
 import { useTheme } from "../context/ThemeContext";
+import api from "../api/axios";
+import axios from "axios";
 
 type Module = "Inventario" | "Base de Datos" | "Ventas" | "Usuarios";
 type Filter = Module | "Todos";
@@ -13,6 +15,13 @@ interface Log {
   module: Module;
   time: string;
   status: "ok" | "warn";
+}
+
+interface CompanyPending {
+  id: string | number;
+  companyName: string;
+  companyNIT: string;
+  email: string;
 }
 
 const logs: Log[] = [
@@ -35,6 +44,55 @@ const MODULES: Filter[] = ["Todos", "Inventario", "Base de Datos", "Ventas", "Us
 export default function DashboardAdminScreen() {
   const { C } = useTheme();
   const [filtro, setFiltro] = useState<Filter>("Todos");
+  
+  // Estados para controlar empresas pendientes
+  const [pendingCompanies, setPendingCompanies] = useState<CompanyPending[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | number | null>(null);
+  const [message, setMessage] = useState("");
+  const [type, setType] = useState<"success" | "error" | "">("");
+
+  const showPopup = (msg: string, t: "success" | "error") => {
+    setMessage(msg);
+    setType(t);
+    setTimeout(() => {
+      setMessage("");
+      setType("");
+    }, 3000);
+  };
+
+  const fetchPendingCompanies = async () => {
+    setLoadingCompanies(true);
+    try {
+      const response = await api.get("/admin/pending-companies");
+      setPendingCompanies(response.data);
+    } catch (error) {
+      console.log("Error consultando empresas pendientes:", error);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingCompanies();
+  }, []);
+
+  const handleApprove = async (id: string | number) => {
+    setActionLoading(id);
+    try {
+      await api.post(`/admin/approve-company/${id}`);
+      showPopup("Empresa autorizada correctamente", "success");
+      setPendingCompanies((prev) => prev.filter((c) => c.id !== id));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        showPopup(error.response?.data?.detail || "Error al autorizar empresa", "error");
+      } else {
+        showPopup("Error desconocido", "error");
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const filtered = filtro === "Todos" ? logs : logs.filter((l) => l.module === filtro);
 
@@ -42,9 +100,66 @@ export default function DashboardAdminScreen() {
     <Screen>
       <AppHeader role="admin" />
       <ScrollView contentContainerStyle={{ padding: 20 }}>
+        {message ? <Popup message={message} type={type as "success" | "error"} /> : null}
+
         <Text style={{ color: C.text, fontSize: 22, fontWeight: "800", marginBottom: 16 }}>
           Panel de Administración General
         </Text>
+
+        {/* INDICADOR DE PRUEBA */}
+        <Text style={{ color: "red", fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 10 }}>
+          PROBANDO CAMBIOS EN VIVO
+        </Text>
+
+        {/* SECCIÓN NUEVA: APROBACIÓN DE EMPRESAS */}
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "800", marginBottom: 10 }}>
+          Aprobar Empresas
+        </Text>
+        <View style={{ backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, marginBottom: 20 }}>
+          {loadingCompanies ? (
+            <ActivityIndicator size="small" color={C.accent} />
+          ) : pendingCompanies.length === 0 ? (
+            <Text style={{ color: C.textSecondary, fontSize: 13, textAlign: "center" }}>
+              No hay empresas pendientes de autorización
+            </Text>
+          ) : (
+            pendingCompanies.map((comp) => (
+              <View
+                key={comp.id}
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingVertical: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: C.border,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: C.text, fontWeight: "700", fontSize: 14 }}>{comp.companyName}</Text>
+                  <Text style={{ color: C.textSecondary, fontSize: 12 }}>NIT: {comp.companyNIT}</Text>
+                  <Text style={{ color: C.textSecondary, fontSize: 11 }}>{comp.email}</Text>
+                </View>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: C.btnPrimary,
+                    borderRadius: 8,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                  }}
+                  onPress={() => handleApprove(comp.id)}
+                  disabled={actionLoading === comp.id}
+                >
+                  {actionLoading === comp.id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Aprobar</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
 
         <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16 }}>
           {kpis.map((k) => (

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Field, Button, Popup, Screen, StrengthBar } from "../components/ui";
 import { useTheme } from "../context/ThemeContext";
 import api from "../api/axios";
@@ -77,9 +78,10 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      let response;
       if (mode === "empresa") {
         const formData = new FormData();
-        formData.append("fullName", form.name);
+        formData.append("fullName", `${form.name} ${form.surname}`.trim());
         formData.append("email", form.email);
         formData.append("password", form.password);
         formData.append("tell", form.tell);
@@ -87,30 +89,46 @@ export default function RegisterScreen() {
         formData.append("companyAddress", form.address);
         formData.append("companyNIT", form.nit);
         formData.append("companyNITDV", form.nitDV || "0");
-        formData.append("certificate", {
-          name: "placeholder.txt",
-          type: "text/plain",
-          uri: "",
-        } as unknown as Blob);
 
-        await api.post("/auth/register-company", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        const dummyFile = {
+          uri: "data:text/plain;base64,SGVsbG8=",
+          name: "certificate.txt",
+          type: "text/plain",
+        };
+        formData.append("certificate", dummyFile as any);
+
+        response = await api.post("/auth/register-company", formData, {
+          headers: { 
+            "Content-Type": "multipart/form-data" 
+          },
         });
-        showPopup("Empresa registrada. Recibirás un correo de verificación.", "success");
+        showPopup("Empresa registrada correctamente", "success");
       } else {
         const payload = {
           fullName: `${form.name} ${form.surname}`.trim(),
           email: form.email,
-          tell: form.tell,
           password: form.password,
+          tell: form.tell,
+          isActive: true,
+          verified: false,
         };
-        await api.post("/auth/register-user", payload);
+
+        response = await api.post("/auth/register-user", payload);
         showPopup("Usuario registrado correctamente", "success");
       }
 
+      // Si el backend entrega token en la respuesta de registro, lo guardamos para evitar el 401
+      const token = response.data?.access_token || response.data?.token;
+      if (token) {
+        await AsyncStorage.setItem("token", token);
+      }
+
       setTimeout(() => {
-        if (mode === "empresa") navigation.replace("Login");
-        else navigation.replace("Verification", { email: form.email });
+        if (mode === "empresa") {
+          navigation.replace("Login");
+        } else {
+          navigation.replace("Verification", { email: form.email });
+        }
       }, 2000);
     } catch (error) {
       if (axios.isAxiosError(error)) {
