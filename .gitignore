@@ -1,0 +1,43 @@
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node, Vite, Expo and package-manager output
+node_modules/
+dist/
+dist-ssr/
+build/
+web-build/
+.expo/
+*.local
+
+# Local databases and logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors and operating-system files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+desktop.ini
+*.swp
+*.swo
