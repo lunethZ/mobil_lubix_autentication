@@ -339,7 +339,6 @@ export const Register = () => {
                                     )}
                                 </button>
                             </div>
-                            />
                         </div>
 
                         {mode === "empresa" && (

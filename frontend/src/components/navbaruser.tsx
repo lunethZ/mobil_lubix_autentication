@@ -22,7 +22,7 @@ export default function NavbarUsuario() {
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
-    const update = () => setCartCount(getCart().reduce((sum, item) => sum + item.quantity, 0));
+    const update = () => setCartCount(getCart().reduce((sum: number, item: any) => sum + item.quantity, 0));
     update();
     window.addEventListener("cart-changed", update);
     window.addEventListener("storage", update);

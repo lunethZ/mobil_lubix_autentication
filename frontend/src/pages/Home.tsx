@@ -13,6 +13,8 @@ interface Producto {
   nombre: string;
   desc: string;
   precio: number;
+  antes?: number | null;
+  descuento?: string | null;
   imagen: string;
   tienda: { nombre: string };
   calificacion: number;
