@@ -13,6 +13,7 @@ PUBLIC_ROUTES = [
     "/auth/register-user",
     "/auth/register-company",
     "/auth/verify-email-user",
+    "/auth/resend-verification",
     "/auth/forgot-password-user",
     "/auth/reset-password-user",
     "/auth/refresh",

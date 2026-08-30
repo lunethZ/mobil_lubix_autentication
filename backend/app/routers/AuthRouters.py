@@ -6,6 +6,7 @@ from app.services.authentication.AuthService import (
     register_user_service,
     register_company_service,
     verify_email_service,
+    resend_verification_service,
     login_user_service,
     login_company_service,
     forgot_password_service,
@@ -76,6 +77,10 @@ def registerCompany(
 def verify_email(code: verifyEmail, database: Session = Depends(get_db)):
     
     return verify_email_service(code, database)
+
+@router.post("/resend-verification")
+def resend_verification(user: forgotPassword, database: Session = Depends(get_db)):
+    return resend_verification_service(user.email, database)
 
 @router.post("/login-user")
 def login_user(user: userLogin, database: Session = Depends(get_db)):

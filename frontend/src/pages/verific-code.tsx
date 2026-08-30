@@ -73,7 +73,7 @@ const VerificationCode: React.FC = () => {
 
     setLoading(true);
     try {
-      await api.post("/auth/verify-email-user", { email, code: "000000" });
+      await api.post("/auth/resend-verification", { email });
       showMessage("Nuevo código enviado", "success");
       setCode(Array(6).fill(""));
       inputRefs.current[0]?.focus();

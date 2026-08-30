@@ -122,12 +122,12 @@ def verify_email_service(code: verifyEmail, database: Session):
         raise HTTPException(status_code=400, detail="Correo incorrecto")
     
     if not verify_code(database, user.id, code.code, code_type="verifyEmail"):
-        code = create_code_and_send_code(database, user.id, user.email, code_type="verifyEmail")
-        return {
-            "message": "Código de verificación incorrecto o expirado. Se ha enviado un nuevo código a tu correo electrónico.",
-            "code": code
-        }
-    
+        create_code_and_send_code(database, user.id, user.email, code_type="verifyEmail")
+        raise HTTPException(
+            status_code=400,
+            detail="Código de verificación incorrecto o expirado. Se ha enviado un nuevo código a tu correo electrónico."
+        )
+
     user.verified = True
     database.commit()
 
@@ -135,6 +135,13 @@ def verify_email_service(code: verifyEmail, database: Session):
         "verified": user.verified,
         "message": "Correo electrónico verificado correctamente"
     }
+
+def resend_verification_service(email: str, database: Session):
+    user = database.query(Users).filter(Users.email == email).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Correo no registrado")
+    create_code_and_send_code(database, user.id, email, code_type="verifyEmail")
+    return {"message": "Se ha enviado un nuevo código de verificación a tu correo electrónico."}
 
 def login_user_service(user: userLogin, database: Session):
     search_user = database.query(Users).filter(Users.email == user.email).first()
