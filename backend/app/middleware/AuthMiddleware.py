@@ -17,6 +17,7 @@ PUBLIC_ROUTES = [
     "/auth/reset-password-user",
     "/auth/refresh",
     "/auth/logout",
+    "/health",
     "/health/database",
     "/health/internet",
     "/docs",
