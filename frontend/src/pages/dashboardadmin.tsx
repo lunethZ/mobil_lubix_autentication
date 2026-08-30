@@ -11,6 +11,7 @@ interface PendingCompany {
 
 export default function DashboardAdminPage() {
   const [companies, setCompanies] = useState<PendingCompany[]>([]);
+  const [approvedCount, setApprovedCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "">("");
@@ -25,10 +26,14 @@ export default function DashboardAdminPage() {
   const fetchCompanies = async () => {
     try {
       setLoading(true);
-      const res = await api.get<PendingCompany[]>("/admin/pending-companies");
-      setCompanies(res.data);
+      const [pendingRes, approvedRes] = await Promise.all([
+        api.get<PendingCompany[]>("/admin/pending-companies"),
+        api.get<PendingCompany[]>("/admin/approved-companies"),
+      ]);
+      setCompanies(pendingRes.data);
+      setApprovedCount(approvedRes.data.length);
     } catch {
-      showMessage("Error al cargar empresas pendientes", "error");
+      showMessage("Error al cargar empresas", "error");
     } finally {
       setLoading(false);
     }
@@ -43,6 +48,7 @@ export default function DashboardAdminPage() {
       await api.post(`/admin/approve-company/${id}`);
       showMessage("Empresa aprobada exitosamente", "success");
       setCompanies((prev) => prev.filter((c) => c.id !== id));
+      setApprovedCount((prev) => prev + 1);
     } catch {
       showMessage("Error al aprobar la empresa", "error");
     } finally {
@@ -67,7 +73,7 @@ export default function DashboardAdminPage() {
           </div>
           <div className="bg-white dark:bg-[#1f2937] p-5 rounded-xl border border-gray-200 dark:border-slate-700/70 shadow-md">
             <span className="text-xs text-gray-500 dark:text-slate-400 block uppercase font-mono tracking-wider">Total aprobadas</span>
-            <span className="text-xl font-bold text-green-500 dark:text-green-400 tracking-tight mt-2 block">—</span>
+            <span className="text-xl font-bold text-green-500 dark:text-green-400 tracking-tight mt-2 block">{approvedCount}</span>
           </div>
           <div className="bg-white dark:bg-[#1f2937] p-5 rounded-xl border border-gray-200 dark:border-slate-700/70 shadow-md">
             <span className="text-xs text-gray-500 dark:text-slate-400 block uppercase font-mono tracking-wider">Rol</span>

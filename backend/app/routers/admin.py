@@ -31,6 +31,24 @@ def get_pending_companies(database: Session = Depends(get_db)):
         for r in pending
     ]
 
+@router.get("/approved-companies")
+def get_approved_companies(database: Session = Depends(get_db)):
+    approved = (
+        database.query(
+            Company.id,
+            Company.nameCompany.label("companyName"),
+            Company.CompanyNIT.label("companyNIT"),
+            Users.email.label("email")
+        )
+        .join(Users, Users.id == Company.user_id)
+        .filter(Users.verified == True)
+        .all()
+    )
+    return [
+        {"id": str(r.id), "companyName": r.companyName, "companyNIT": r.companyNIT, "email": r.email}
+        for r in approved
+    ]
+
 # Activa/verifica la empresa
 @router.post("/approve-company/{company_id}")
 def approve_company(company_id: str, database: Session = Depends(get_db)):
