@@ -20,13 +20,19 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const url = originalRequest?.url || "";
+
+    // No reintentar refresh sobre el propio endpoint (evita bucles 401)
+    if (url.includes("/auth/refresh")) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       const refreshToken = await secureStore.getItem("refresh_token");
 
-      if (refreshToken) {
+      if (refreshToken && refreshToken.split(".").length === 3) {
         try {
           const res = await api.post("/auth/refresh", {
             old_refresh_token: refreshToken,
@@ -45,6 +51,10 @@ api.interceptors.response.use(
           await secureStore.removeItem("refresh_token");
           await secureStore.removeItem("user");
         }
+      } else {
+        await secureStore.removeItem("access_token");
+        await secureStore.removeItem("refresh_token");
+        await secureStore.removeItem("user");
       }
     }
 
