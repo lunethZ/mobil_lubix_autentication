@@ -26,10 +26,8 @@ export default function NavbarAdmin({ onReportarCambios, onAbrirConfiguracion }:
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   return (

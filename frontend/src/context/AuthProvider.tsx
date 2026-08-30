@@ -27,12 +27,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(userData);
   };
 
-  //  LOGOUT
+  //  LOGOUT - limpia todo y evita que el botón volver muestre sesión cacheada
   const logout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
-
     setUser(null);
   };
 

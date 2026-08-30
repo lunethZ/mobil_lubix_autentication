@@ -151,6 +151,11 @@ def login_user_service(user: userLogin, database: Session):
     
     if not verify_password(user.password, search_user.hashed_password):
         raise HTTPException(status_code=400, detail="contraseña incorrectos")
+
+    # Validación de rol: este endpoint es para usuario y admin
+    # Solo bloquea empresa (evita que empresa entre como usuario)
+    if search_user.role.name == "company":
+        raise HTTPException(status_code=403, detail="Esta cuenta es de empresa. Usa el acceso de Empresa.")
     
     if not search_user.verified:
         create_code_and_send_code(database, search_user.id, search_user.email, code_type="verifyEmail")
@@ -180,13 +185,23 @@ def login_user_service(user: userLogin, database: Session):
     )
 
 def login_company_service(company: LoginCompany, database: Session):
-    search_company = database.query(Users).join(Company, Users.id == Company.user_id).filter(Users.email == company.email).first()
+    search_company = database.query(Users).filter(Users.email == company.email).first()
     
     if not search_company:
         raise HTTPException(status_code=400, detail="Correo o contraseña incorrectos")
     
     if not verify_password(company.password, search_company.hashed_password):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta")
+
+    # Validación de rol: este endpoint solo permite cuentas de empresa
+    # Evita que un usuario normal inicie sesión como empresa
+    if search_company.role.name != "company":
+        raise HTTPException(status_code=403, detail="Esta cuenta no es de empresa. Usa el acceso de Usuario.")
+    
+    # Verificar que exista registro en tabla Company (cuenta empresarial válida)
+    company_record = database.query(Company).filter(Company.user_id == search_company.id).first()
+    if not company_record:
+        raise HTTPException(status_code=403, detail="Cuenta de empresa no encontrada o no verificada por Lubix")
     
     if not search_company.verified:
         create_code_and_send_code(database, search_company.id, search_company.email, code_type="verifyEmail")

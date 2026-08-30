@@ -19,10 +19,8 @@ export default function NavbarEmpresa() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   return (

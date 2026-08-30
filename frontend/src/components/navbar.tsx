@@ -80,7 +80,11 @@ export default function Navbar() {
             <span className="font-medium">{user.name}</span>
             {/* LOGOUT */}
             <button
-              onClick={logout}
+              onClick={() => {
+                logout();
+                // replace evita que volver regrese al dashboard con sesión
+                window.location.href = "/login";
+              }}
               className="bg-red-500 px-3 py-1 rounded text-white hover:bg-red-600 transition-colors duration-300"
             >
               Salir

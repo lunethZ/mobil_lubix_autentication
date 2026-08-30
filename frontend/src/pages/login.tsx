@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import axios from "axios";
 import type { LoginRequest, LoginResponse } from "../types/auts";
 import { useAuth } from "../context/AuthContext";
 import { errorDetailMessage } from "../utils/errors";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -15,7 +16,16 @@ const Login: React.FC = () => {
   const [messageType, setMessageType] = useState<"success" | "error" | "">("");
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
+
+  // Si ya está autenticado, redirigir y evitar que el botón volver deje ver el login
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role_id === "empresa") navigate("/home-empresa", { replace: true });
+      else if (user.role_id === "admin") navigate("/dashboard-admin", { replace: true });
+      else navigate("/home-usuario", { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const showMessage = (msg: string, type: "success" | "error") => {
     setMessage(msg);
@@ -62,13 +72,13 @@ const Login: React.FC = () => {
 
       showMessage(`¡Bienvenido ${data.Nombre}!`, "success");
 
-      // Redirigir según el tipo de usuario
+      // Redirigir según el tipo de usuario (replace evita que volver regrese al login con sesión abierta)
       if (mappedRole === "empresa") {
-        setTimeout(() => navigate("/dashboard-empresa"), 1000);
+        setTimeout(() => navigate("/home-empresa", { replace: true }), 1000);
       } else if (mappedRole === "admin") {
-        setTimeout(() => navigate("/dashboard-admin"), 1000);
+        setTimeout(() => navigate("/dashboard-admin", { replace: true }), 1000);
       } else {
-        setTimeout(() => navigate("/dashboard-usuario"), 1000);
+        setTimeout(() => navigate("/home-usuario", { replace: true }), 1000);
       }
 
     } catch (error: unknown) {
@@ -91,7 +101,18 @@ const Login: React.FC = () => {
         </div>
       )}
 
-      <div className="page-container flex items-center justify-center p-3 sm:p-4">
+      <div className="page-container flex items-center justify-center p-3 sm:p-4 relative">
+        {/* Flecha para devolverse */}
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          aria-label="Volver al inicio"
+          className="absolute top-4 left-4 flex items-center gap-1.5 text-muted hover:text-accent transition-colors text-sm font-medium"
+        >
+          <ArrowLeftIcon className="w-5 h-5" />
+          <span className="hidden sm:inline">Volver</span>
+        </button>
+
         <div className="w-full max-w-sm">
           <div className="text-center mb-4 sm:mb-5">
             <h1 className="text-accent text-2xl sm:text-3xl font-black drop-shadow-sm mb-1">
