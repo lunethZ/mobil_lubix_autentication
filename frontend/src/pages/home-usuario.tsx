@@ -91,20 +91,20 @@ const HomeUsuario: React.FC = () => {
   const renderProducto = (prod: Producto) => {
     const isFav = favorites.includes(prod.id);
     return (
-      <div key={prod.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:-translate-y-2 transition relative">
+      <div key={prod.id} className="card relative">
         <button
           onClick={() => handleFavorite(prod.id)}
-          className="absolute top-3 right-3 z-10 w-9 h-9 bg-white/80 rounded-full flex items-center justify-center shadow hover:scale-110 transition"
+          className="absolute top-3 right-3 z-10 w-9 h-9 bg-black/5 dark:bg-white/10 rounded-full flex items-center justify-center shadow hover:scale-110 transition"
         >
           {isFav ? <HeartSolid className="w-5 h-5 text-pink-500" /> : <HeartOutline className="w-5 h-5 text-gray-500" />}
         </button>
         <img src={prod.imagen} alt={prod.nombre} className="w-full h-56 object-cover" />
         <div className="p-6">
           <h3 className="font-bold text-lg mb-1">{prod.nombre}</h3>
-          <p className="text-sm text-gray-600 mb-3">{prod.desc}</p>
+          <p className="text-sm text-muted mb-3">{prod.desc}</p>
           <div className="flex items-center gap-3 mb-4">
             <span className="text-emerald-600 font-bold text-xl">${prod.precio.toLocaleString()}</span>
-            {prod.antes && <span className="line-through text-gray-400">${prod.antes.toLocaleString()}</span>}
+            {prod.antes && <span className="line-through text-muted">${prod.antes.toLocaleString()}</span>}
             {prod.descuento && <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-1 rounded">{prod.descuento}</span>}
           </div>
           <button
