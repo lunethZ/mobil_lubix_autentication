@@ -30,6 +30,13 @@ class Product(Base):
         nullable=True
     )
 
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="active",
+        nullable=False,
+        server_default="active"
+    )
+
 
     discount_enable: Mapped[bool] = mapped_column(
         Boolean,
@@ -82,6 +89,18 @@ class Product(Base):
     catalog: Mapped["Catalog"] = relationship(
         "Catalog",
         back_populates="products"
+    )
+
+    reviews: Mapped[list["Review"]] = relationship(
+        "Review",
+        back_populates="product",
+        cascade="all, delete-orphan"
+    )
+
+    favorites: Mapped[list["Favorite"]] = relationship(
+        "Favorite",
+        back_populates="product",
+        cascade="all, delete-orphan"
     )
 
 class Catalog(Base):

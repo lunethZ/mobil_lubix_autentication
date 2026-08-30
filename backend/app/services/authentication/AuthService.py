@@ -2,9 +2,11 @@
 # incluyendo registro, inicio de sesión, verificación de correo electrónico, 
 # recuperación de contraseña y cierre de sesión.
 from fastapi import HTTPException
+from datetime import datetime, timedelta
 from app.models.ModelCompany import Company
 from app.models.ModelUser import Users
 from app.models.ModelRole import Role
+from app.models.ModelRefreshToken import RefreshToken
 from app.schemas.SchemaAuthUser import (
     createUser, 
     verifyEmail, 
@@ -20,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.utils.Security import hash_password, verify_password
 from app.services.email.SaveAndGenerateCode import create_code_and_send_code, verify_code
 from app.services.email.template.EmailRegisterCompany import EmailRegisterCompany
+from app.Config import config
 
 def register_user_service(user: createUser, database: Session):
     user_role = database.query(Role).filter(Role.name == "user").first()
@@ -40,10 +43,12 @@ def register_user_service(user: createUser, database: Session):
             isActive = user.isActive,
             verified = user.verified,
         )
-    
+        print("aca 1")
         database.add(new_user)
+        print("aca 2")
         database.commit()
         database.refresh(new_user)
+        print("aca 3")
         confirm_id_user = database.query(Users).filter(Users.email == user.email).first()
         create_code_and_send_code(database, confirm_id_user.id, email=user.email, code_type="verifyEmail")
         return {
@@ -144,6 +149,7 @@ def resend_verification_service(email: str, database: Session):
     return {"message": "Se ha enviado un nuevo código de verificación a tu correo electrónico."}
 
 def login_user_service(user: userLogin, database: Session):
+    print("entra a login_user_service")
     search_user = database.query(Users).filter(Users.email == user.email).first()
 
     if not search_user:
@@ -172,6 +178,8 @@ def login_user_service(user: userLogin, database: Session):
     refresh_token = create_refresh_token(
         user_id=str(search_user.id)
     )
+
+    save_refresh_token(database, search_user.id, refresh_token)
     
     print(search_user.id)
     print(search_user.role.name)
@@ -218,6 +226,8 @@ def login_company_service(company: LoginCompany, database: Session):
         user_id=str(search_company.id)
     )
 
+    save_refresh_token(database, search_company.id, refresh_token)
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -254,6 +264,28 @@ def reset_password_service(user: ResetPassword, database: Session):
     }
 
 
+def save_refresh_token(database: Session, user_id, token: str):
+    database.query(RefreshToken).filter(RefreshToken.token == token).delete()
+    new_token = RefreshToken(
+        token=token,
+        revoked=False,
+        user_id=user_id,
+        expires_at=datetime.utcnow() + timedelta(days=config.REFRESH_TOKEN_DAYS)
+    )
+    database.add(new_token)
+    database.commit()
+
+def resend_verification_service(email: str, database: Session):
+    user = database.query(Users).filter(Users.email == email).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Correo no registrado")
+    if user.verified:
+        raise HTTPException(status_code=400, detail="El correo ya ha sido verificado")
+    create_code_and_send_code(database, user.id, user.email, code_type="verifyEmail")
+    return {
+        "message": "Se ha enviado un nuevo código de verificación a tu correo electrónico."
+    }
+
 def refresh_token_service(data: RefreshRequest, database: Session):
 
     payload = verify_token(data.old_refresh_token)
@@ -270,6 +302,22 @@ def refresh_token_service(data: RefreshRequest, database: Session):
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado...")
     
+    db_token = database.query(RefreshToken).filter(
+        RefreshToken.token == data.old_refresh_token,
+        RefreshToken.user_id == user.id
+    ).first()
+
+    if not db_token:
+        raise HTTPException(status_code=401, detail="Sesión no encontrada")
+    
+    if db_token.revoked:
+        raise HTTPException(status_code=401, detail="Sesión revocada")
+    
+    if db_token.expires_at and db_token.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=401, detail="Sesión expirada")
+
+    db_token.revoked = True
+    database.commit()
 
     new_access_token = create_access_token(
         user_id=str(user.id),
@@ -280,6 +328,8 @@ def refresh_token_service(data: RefreshRequest, database: Session):
         user_id=str(user.id)
     )
 
+    save_refresh_token(database, user.id, new_refresh_token)
+
     return TokenResponse(
         access_token=new_access_token,
         refresh_token=new_refresh_token,
@@ -289,8 +339,13 @@ def refresh_token_service(data: RefreshRequest, database: Session):
         email=user.email
     )
 
-def logout_service():
-    
-    return{
-        "messaje":"Session cerrada satifactoriamente..."
+def logout_service(refresh_token: str, database: Session):
+    if refresh_token:
+        db_token = database.query(RefreshToken).filter(RefreshToken.token == refresh_token).first()
+        if db_token:
+            db_token.revoked = True
+            database.commit()
+
+    return {
+        "message": "Sesión cerrada correctamente"
     }

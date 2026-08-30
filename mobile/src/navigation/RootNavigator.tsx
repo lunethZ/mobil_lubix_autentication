@@ -14,6 +14,7 @@ import DashboardAdminScreen from "../screens/DashboardAdmin";
 import CarritoScreen from "../screens/Carrito";
 import BuscarProductoScreen from "../screens/BuscarProducto";
 import ProductosScreen from "../screens/Productos";
+import ProductoDetalleScreen from "../screens/ProductoDetalle";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -38,6 +39,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Carrito" component={CarritoScreen} options={{ headerShown: false }} />
         <Stack.Screen name="BuscarProducto" component={BuscarProductoScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Productos" component={ProductosScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ProductoDetalle" component={ProductoDetalleScreen} options={{ headerShown: false }} />
       </Stack.Group>
     </Stack.Navigator>
   );

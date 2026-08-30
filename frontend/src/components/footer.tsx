@@ -1,8 +1,6 @@
-// src/components/Footer.tsx
-// src/components/Footer.tsx
-import React from "react";
+import { Link } from "react-router-dom";
 
-const Footer: React.FC = () => {
+const Footer = () => {
   return (
     <footer className="bg-gray-100 dark:bg-slate-900 text-gray-700 dark:text-gray-300 mt-20 border-t border-gray-200 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -16,25 +14,25 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="text-gray-900 dark:text-white font-semibold mb-4">Ayuda</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:text-green-500">Comprar</a></li>
-              <li><a href="#" className="hover:text-green-500">Vender</a></li>
-              <li><a href="#" className="hover:text-green-500">Centro de ayuda</a></li>
+              <li><Link to="/buscar" className="hover:text-green-500">Comprar</Link></li>
+              <li><Link to="/register" className="hover:text-green-500">Vender</Link></li>
+              <li><Link to="/login" className="hover:text-green-500">Centro de ayuda</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-gray-900 dark:text-white font-semibold mb-4">Acerca de</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:text-green-500">Términos</a></li>
-              <li><a href="#" className="hover:text-green-500">Privacidad</a></li>
-              <li><a href="#" className="hover:text-green-500">Contacto</a></li>
+              <li><Link to="/" className="hover:text-green-500">Términos</Link></li>
+              <li><Link to="/" className="hover:text-green-500">Privacidad</Link></li>
+              <li><Link to="/" className="hover:text-green-500">Contacto</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-gray-900 dark:text-white font-semibold mb-4">Redes Sociales</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:text-green-500">Facebook</a></li>
-              <li><a href="#" className="hover:text-green-500">Instagram</a></li>
-              <li><a href="#" className="hover:text-green-500">Twitter</a></li>
+              <li><a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-green-500">Facebook</a></li>
+              <li><a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-green-500">Instagram</a></li>
+              <li><a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="hover:text-green-500">Twitter</a></li>
             </ul>
           </div>
         </div>

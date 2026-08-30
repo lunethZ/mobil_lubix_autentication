@@ -74,3 +74,33 @@ class Users(Base):
         cascade="all, delete-orphan"
     )
 
+    addresses: Mapped[list["Address"]] = relationship(
+        "Address",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    orders: Mapped[list["Order"]] = relationship(
+        "Order",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    reviews: Mapped[list["Review"]] = relationship(
+        "Review",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    favorites: Mapped[list["Favorite"]] = relationship(
+        "Favorite",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    pqrs: Mapped[list["PQRS"]] = relationship(
+        "PQRS",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+

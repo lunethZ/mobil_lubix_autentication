@@ -27,7 +27,7 @@ Como visitante de Lubix, quiero crear una cuenta proporcionando mis datos person
 
 **cuando** se carga la interfaz,
 
-**entonces** debo visualizar los campos nombre completo, correo electrónico, contraseña, confirmación de contraseña y botón de registro.
+**entonces** debo visualizar los campos nombre y apellidos, correo electrónico, contraseña, confirmación de contraseña y botón de registro.
 
 ---
 

@@ -697,13 +697,6 @@ Este proyecto implementa varias capas de seguridad:
 
 Ver [backend/CHANGELOG.md](backend/CHANGELOG.md) para historial de cambios
 
----
-
-## 👨‍💻 Autor
-
-**Yeinher Algarin** — Desarrollador Principal
-
----
 
 ## 📞 Soporte
 

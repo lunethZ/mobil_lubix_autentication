@@ -3,15 +3,18 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput } from "react-nativ
 import { Screen } from "../components/ui";
 import AppHeader from "../components/AppHeader";
 import { useTheme } from "../context/ThemeContext";
-import { useRoute, RouteProp } from "@react-navigation/native";
+import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { PRODUCTS, CATEGORIES, formatCOP } from "../data/products";
 import type { RootStackParamList } from "../navigation/types";
 
 type Route = RouteProp<RootStackParamList, "BuscarProducto">;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Order = "relevance" | "price_asc" | "price_desc" | "name_asc";
 
 export default function BuscarProductoScreen() {
   const route = useRoute<Route>();
+  const navigation = useNavigation<Nav>();
   const { C } = useTheme();
   const [query, setQuery] = useState(route.params?.q || "");
   const [category, setCategory] = useState<string | null>(null);
@@ -111,12 +114,20 @@ export default function BuscarProductoScreen() {
           </View>
         ) : (
           results.map((p) => (
-            <View key={p.id} style={{ flexDirection: "row", backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, marginBottom: 10 }}>
+            <TouchableOpacity
+              key={p.id}
+              style={{ flexDirection: "row", backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, marginBottom: 10 }}
+              onPress={() => navigation.navigate("ProductoDetalle", { id: p.id })}
+            >
               <View style={{ width: 60, height: 60, borderRadius: 8, backgroundColor: C.bgSecondary, alignItems: "center", justifyContent: "center" }}>
                 <Text style={{ fontSize: 24 }}>{p.category === "Audio" ? "🎧" : p.category === "Cámaras" ? "📷" : "📦"}</Text>
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text numberOfLines={2} style={{ color: C.text, fontWeight: "700", fontSize: 14 }}>{p.name}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Text style={{ color: "#f59e0b", fontSize: 12 }}>{"★".repeat(Math.round(p.rating))}{"☆".repeat(5 - Math.round(p.rating))}</Text>
+                  <Text style={{ color: C.textSecondary, fontSize: 11 }}>{p.rating.toFixed(1)}</Text>
+                </View>
                 <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>{p.store}</Text>
                 {p.discount ? (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
@@ -127,7 +138,7 @@ export default function BuscarProductoScreen() {
                 <Text style={{ color: C.text, fontSize: 15, fontWeight: "800", marginTop: 2 }}>{formatCOP(p.price)}</Text>
                 {p.stock === 0 && <Text style={{ color: C.errorText, fontSize: 11, fontWeight: "700" }}>Agotado</Text>}
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>

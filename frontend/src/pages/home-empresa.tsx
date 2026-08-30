@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import NavbarEmpresa from "../components/navbar-empresa";
 import Footer from "../components/footer";
 import { useAuth } from "../context/AuthContext";
@@ -48,6 +48,7 @@ const proyectosContemporaneos = [
 
 const HomeEmpresa = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [index, setIndex] = useState(0);
 
   // Rotación automática de casos de éxito
@@ -76,20 +77,20 @@ const HomeEmpresa = () => {
             Construimos puentes tecnológicos y comerciales sólidos para optimizar tu cadena de valor. Conecta con mercados globales de manera escalable y eficiente.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-            <Link 
-              to="/contacto" 
+            <button 
+              onClick={() => navigate("/register")}
               className="inline-flex items-center justify-center bg-emerald-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition space-x-2 shadow-lg shadow-emerald-600/20"
             >
               <span>Agendar Alianza</span>
               <ArrowRightIcon className="w-4 h-4" />
-            </Link>
-            <Link 
-              to="/nosotros" 
+            </button>
+            <button 
+              onClick={() => navigate("/dashboard-empresa")}
               className="inline-flex items-center justify-center border-2 border-gray-300 dark:border-gray-700 px-8 py-3 rounded-xl font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
               style={{ color: "var(--color-text)" }}
             >
               Conocer Más
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -173,12 +174,12 @@ const HomeEmpresa = () => {
           <p className="text-emerald-200/80 max-w-xl mx-auto mb-8 text-sm md:text-base">
             Únete al ecosistema Lubix Enterprise. Agenda una sesión técnica presencial u online con nuestros asesores corporativos.
           </p>
-          <Link 
-            to="/contacto" 
+          <button 
+            onClick={() => navigate("/register")}
             className="inline-block bg-white text-emerald-950 px-8 py-3 rounded-xl font-bold hover:bg-emerald-50 transition shadow-lg"
           >
             Contactar Consultor
-          </Link>
+          </button>
         </div>
       </section>
 

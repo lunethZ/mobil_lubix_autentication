@@ -52,6 +52,13 @@ export const cartStore = {
     await this.set(updated);
     return updated;
   },
+  async clear(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(CART_KEY);
+    } catch {
+      // ignore
+    }
+  },
 };
 
 export const favoritesStore = {

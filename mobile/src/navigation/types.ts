@@ -13,4 +13,5 @@ export type RootStackParamList = {
   Carrito: undefined;
   BuscarProducto: { q?: string } | undefined;
   Productos: undefined;
+  ProductoDetalle: { id: number };
 };

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import axios from "axios";
 import { errorDetailMessage } from "../utils/errors";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 type RegistrationMode = "usuario" | "empresa";
 
@@ -27,6 +28,8 @@ export const Register = () => {
     const [message, setMessage] = useState("");
     const [type, setType] = useState<"success" | "error" | "">("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const password = form.password;
 
@@ -267,15 +270,29 @@ export const Register = () => {
                             <label className="label-base">
                                 Contraseña *
                             </label>
-                            <input
-                                type="password"
-                                name="password"
-                                value={form.password}
-                                onChange={handleChange}
-                                className="input-base"
-                                placeholder="••••••••"
-                                required
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    name="password"
+                                    value={form.password}
+                                    onChange={handleChange}
+                                    className="input-base pr-10"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? (
+                                        <EyeSlashIcon className="w-5 h-5" />
+                                    ) : (
+                                        <EyeIcon className="w-5 h-5" />
+                                    )}
+                                </button>
+                            </div>
 
                             {form.password && (
                                 <div className="mt-3">
@@ -299,14 +316,29 @@ export const Register = () => {
                             <label className="label-base">
                                 Confirmar contraseña *
                             </label>
-                            <input
-                                type="password"
-                                name="confirmPassword"
-                                value={form.confirmPassword}
-                                onChange={handleChange}
-                                className="input-base"
-                                placeholder="••••••••"
-                                required
+                            <div className="relative">
+                                <input
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    name="confirmPassword"
+                                    value={form.confirmPassword}
+                                    onChange={handleChange}
+                                    className="input-base pr-10"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+                                    tabIndex={-1}
+                                >
+                                    {showConfirmPassword ? (
+                                        <EyeSlashIcon className="w-5 h-5" />
+                                    ) : (
+                                        <EyeIcon className="w-5 h-5" />
+                                    )}
+                                </button>
+                            </div>
                             />
                         </div>
 
