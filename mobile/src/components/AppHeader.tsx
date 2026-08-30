@@ -12,12 +12,11 @@ interface Props {
   role?: "user" | "empresa" | "admin" | "guest";
 }
 
-const base = "#162238";
-
-export default function AppHeader({ role = "guest" }: Props) {
-  const navigation = useNavigation<Nav>();
-  const { user, logout } = useAuth();
-  const barBg = role === "admin" ? "#111827" : base;
+  export default function AppHeader({ role = "guest" }: Props) {
+    const navigation = useNavigation<Nav>();
+    const { user, logout } = useAuth();
+    const { C } = useTheme();
+    const barBg = C.navbar;
 
   const handleLogout = async () => {
     await logout();
@@ -40,7 +39,7 @@ export default function AppHeader({ role = "guest" }: Props) {
         <View style={styles.actions}>
           {role === "user" && (
             <TouchableOpacity onPress={() => navigation.navigate("Carrito")}>
-              <Text style={styles.link}>Carrito</Text>
+              <Text style={[styles.link, { color: C.text }]}>Carrito</Text>
             </TouchableOpacity>
           )}
           {user && (
@@ -55,7 +54,7 @@ export default function AppHeader({ role = "guest" }: Props) {
           )}
           {!user && (
             <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.link}>Entrar</Text>
+              <Text style={[styles.link, { color: C.text }]}>Entrar</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -65,7 +64,7 @@ export default function AppHeader({ role = "guest" }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: base },
+  safe: {},
   nav: {
     paddingVertical: 14,
     paddingHorizontal: 16,
