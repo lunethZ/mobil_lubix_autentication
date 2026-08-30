@@ -214,10 +214,10 @@ const VerificationCode: React.FC = () => {
                     disabled={loading}
                     className="w-10 h-10 text-lg font-bold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 outline-none disabled:opacity-50 flex items-center justify-center"
                     style={{
-                      backgroundColor: "white",
+                      backgroundColor: "var(--color-bg-input)",
                       borderColor: "var(--color-border)",
                       border: "1px solid var(--color-border)",
-                      color: "#000000",
+                      color: "var(--color-text)",
                     }}
                   />
                 ))}
