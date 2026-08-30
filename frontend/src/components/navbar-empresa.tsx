@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { UserCircleIcon, ChartBarIcon, ShoppingBagIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { UserCircleIcon, ChartBarIcon, ShoppingBagIcon, MagnifyingGlassIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 
 export default function NavbarEmpresa() {
@@ -83,6 +83,11 @@ export default function NavbarEmpresa() {
           <span>Productos</span>
         </Link>
 
+        <Link to="/pqrs" className="flex items-center gap-1 hover:text-green-400 transition">
+          <ChatBubbleLeftEllipsisIcon className="w-5 h-5" />
+          <span>PQRS</span>
+        </Link>
+
         {user && (
           <div className="relative">
             <button
@@ -107,13 +112,6 @@ export default function NavbarEmpresa() {
                   onClick={() => setMenuOpen(false)}
                 >
                   Perfil de Empresa
-                </Link>
-                <Link
-                  to="/dashboard-empresa"
-                  className="block px-4 py-2 text-white hover:bg-green-500 transition"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Configuración
                 </Link>
                 <button
                   onClick={handleLogout}

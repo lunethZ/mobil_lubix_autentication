@@ -44,6 +44,11 @@ export default function LoginScreen() {
       const response = await api.post<LoginResponse>(endpoint, payload);
       const data = response.data;
 
+      if (!data.access_token) {
+        showMessage(data.message || "Cuenta no verificada. Revisa tu correo.", "error");
+        return;
+      }
+
       const mappedRole =
         data.role === "company" ? "empresa" : data.role === "admin" ? "admin" : "user";
 

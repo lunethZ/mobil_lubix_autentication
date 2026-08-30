@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import NavbarUsuario from "../components/navbaruser";
+import NavbarAuto from "../components/navbar-auto";
 import Footer from "../components/footer";
-import { TrashIcon, ShoppingBagIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, ShoppingBagIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import { useAuth } from "../context/AuthContext";
 
 interface CartItem {
   id: number;
@@ -15,6 +16,16 @@ interface CartItem {
 const CartPage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+
+  const homeRoute = user?.role_id === "user"
+    ? "/home-usuario"
+    : user?.role_id === "empresa"
+      ? "/home-empresa"
+      : user?.role_id === "admin"
+        ? "/dashboard-admin"
+        : "/";
 
   useEffect(() => {
     const saved = localStorage.getItem("cart");
@@ -43,9 +54,17 @@ const CartPage = () => {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  const handleCheckout = () => {
+    if (!isAuthenticated) {
+      setShowAuthPrompt(true);
+      return;
+    }
+    navigate("/pago");
+  };
+
   return (
     <div className="page-container min-h-screen">
-      <NavbarUsuario />
+      <NavbarAuto />
       <div className="max-w-4xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold mb-8" style={{ color: "var(--color-text)" }}>
           Carrito de Compras
@@ -57,7 +76,7 @@ const CartPage = () => {
             <p className="text-lg font-medium mb-2" style={{ color: "var(--color-text)" }}>Tu carrito está vacío</p>
             <p className="text-sm mb-6" style={{ color: "var(--color-muted)" }}>Explora productos y agrégalos a tu carrito</p>
             <Link
-              to="/home-usuario"
+              to={homeRoute}
               className="inline-block bg-green-500 hover:bg-green-400 text-white px-6 py-2.5 rounded-xl font-semibold transition"
             >
               Ver productos
@@ -106,11 +125,50 @@ const CartPage = () => {
                 Total: <span className="text-green-500">${total.toLocaleString("es-CO")}</span>
               </p>
               <button
-                onClick={() => navigate("/pago")}
+                onClick={handleCheckout}
                 className="mt-3 bg-green-500 hover:bg-green-400 text-white px-8 py-3 rounded-xl font-semibold transition"
               >
                 Proceder al pago
               </button>
+            </div>
+          </div>
+        )}
+
+        {showAuthPrompt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowAuthPrompt(false)}>
+            <div
+              className="w-full max-w-md rounded-2xl p-8 text-center shadow-2xl"
+              style={{ backgroundColor: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center bg-green-500/10">
+                <LockClosedIcon className="w-8 h-8 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--color-text)" }}>Necesitas una cuenta</h2>
+              <p className="mb-6" style={{ color: "var(--color-muted)" }}>
+                Para continuar con la compra debes iniciar sesión o registrarte. Tu carrito se conservará.
+              </p>
+              <div className="space-y-3">
+                <Link
+                  to="/login"
+                  className="block w-full bg-green-500 hover:bg-green-400 text-white py-3 rounded-xl font-semibold transition"
+                >
+                  Iniciar sesión
+                </Link>
+                <Link
+                  to="/register"
+                  className="block w-full border border-green-500 text-green-500 py-3 rounded-xl font-semibold transition"
+                >
+                  Registrarme
+                </Link>
+                <button
+                  onClick={() => setShowAuthPrompt(false)}
+                  className="w-full py-2 text-sm hover:underline"
+                  style={{ color: "var(--color-muted)" }}
+                >
+                  Seguir comprando
+                </button>
+              </div>
             </div>
           </div>
         )}

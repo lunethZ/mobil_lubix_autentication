@@ -1,11 +1,12 @@
-# este codigo es creado para dar acceso a las rutas 
-# esto sin necesitad de token de autenticacion,
-# pero de igual manera se busca validar el token a la hora
-# de proteger las demas rutas dependiendo del rol validando 
-# en la base de datos si aquel token existe y corresponde a el usuario
 from fastapi import Request
 from starlette.responses import JSONResponse
 from app.services.authentication.JWTService import verify_token
+
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+    "Access-Control-Allow-Headers": "*",
+}
 
 PUBLIC_ROUTES = [
     "/auth/login-user",
@@ -16,11 +17,13 @@ PUBLIC_ROUTES = [
     "/auth/resend-verification",
     "/auth/forgot-password-user",
     "/auth/reset-password-user",
+    "/auth/resend-verification",
     "/auth/refresh",
     "/auth/logout",
     "/health",
     "/health/database",
     "/health/internet",
+    "/products/search",
     "/docs",
     "/openapi.json"
 ]
@@ -29,21 +32,41 @@ ROLES_PERMISSIONS_ROUTERS = {
 
     "admin": [
         "",
-        "/"
+        "/",
+        "/admin/pqrs"
     ],
 
     "company": [
         "/company/dashboard/me",
         "/company/dashboard/my-profile",
         "/company/dashboard/upgrade-my-profile",
-        "/company/products"
+        "/company/dashboard/upload-logo",
+        "/company/dashboard/upload-banner",
+        "/company/products",
+        "/company/orders",
+        "/pqrs"
     ],
 
     "user": [
-        "/user/dashboard"
+        "/user/dashboard",
+        "/user/profile",
+        "/user/change-password",
+        "/user/account",
+        "/user/export",
+        "/user/addresses",
+        "/user/orders",
+        "/user/favorites",
+        "/pqrs"
     ]
     
 }
+
+def _cors_response(status_code: int, detail: str):
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail},
+        headers=CORS_HEADERS,
+    )
 
 async def auth_middleware(request: Request, call_next):
 
@@ -54,40 +77,59 @@ async def auth_middleware(request: Request, call_next):
 
     if path in PUBLIC_ROUTES:
         return await call_next(request)
+
+    if path.startswith("/products/"):
+        if request.method == "GET":
+            return await call_next(request)
+        else:
+            auth_header = request.headers.get("Authorization")
+            if not auth_header:
+                return _cors_response(401, "Token requerido")
+            try:
+                scheme, token = auth_header.split()
+                if scheme.lower() != "bearer":
+                    return _cors_response(401, "Formato de autorizacion invalido")
+                payload = verify_token(token)
+                if not isinstance(payload, dict) or payload is None:
+                    return _cors_response(401, "Token invalido")
+                if payload.get("type") != "access":
+                    return _cors_response(401, "Access token requerido")
+                user_id = payload.get("sub")
+                role = payload.get("role")
+                if not user_id:
+                    return _cors_response(401, "Token invalido")
+                request.state.user_id = user_id
+                request.state.role = role
+                if role != "user":
+                    return _cors_response(403, "Solo usuarios pueden crear reseñas")
+                return await call_next(request)
+            except Exception as e:
+                return _cors_response(401, "Token invalido")
     
     auth_header = request.headers.get("Authorization")
 
     if not auth_header:
-        return JSONResponse(status_code=401, content={"detail": "Token requerido"})
+        return _cors_response(401, "Token requerido")
     
     try:
         scheme, token = auth_header.split()
 
-        print("TOKEN RAW:", token)
-
         if scheme.lower() != "bearer":
-            return JSONResponse(status_code=401, content={"detail": "Formato de autorizacion invalido"})
+            return _cors_response(401, "Formato de autorizacion invalido")
         
-        payload =verify_token(token)
+        payload = verify_token(token)
 
-        if not isinstance(payload, dict):
-            response = JSONResponse(status_code=401, content={"detail": "Token invalido"})
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            return response
+        if not isinstance(payload, dict) or payload is None:
+            return _cors_response(401, "Token invalido")
 
-        print("DECODE RESULT:", payload)
-
-        if payload is None:
-            return JSONResponse(status_code=401, content={"detail": "Token invalido"})
-        
         if payload.get("type") != "access":
-            return JSONResponse(status_code=401, content={"detail": "Access token requerido"})
+            return _cors_response(401, "Access token requerido")
         
         user_id = payload.get("sub")
         role = payload.get("role")
 
         if not user_id:
-            return JSONResponse(status_code=401, content={"detail": "Token invalido"})
+            return _cors_response(401, "Token invalido")
         
         request.state.user_id = user_id
         request.state.role = role
@@ -104,16 +146,11 @@ async def auth_middleware(request: Request, call_next):
         )
 
         if not has_permission:
-            return JSONResponse(status_code=401, content={"detail":"no tienes permiso para acceder a este recurso"})
+            return _cors_response(401, "no tienes permiso para acceder a este recurso")
         
         
         return await call_next(request)
     
     except Exception as e:
-        
         print("Auth Error", e)
-
-        return JSONResponse(status_code=401, content={"detail": "Token invalido"})
-
-    
-
+        return _cors_response(401, "Token invalido")

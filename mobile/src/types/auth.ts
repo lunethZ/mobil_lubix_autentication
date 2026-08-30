@@ -31,13 +31,13 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   message: string;
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  id: number;
-  Nombre: string;
-  email: string;
-  role: string;
+  access_token?: string;
+  refresh_token?: string;
+  token_type?: string;
+  id?: number;
+  Nombre?: string;
+  email?: string;
+  role?: string;
 }
 
 export interface ForgotPasswordRequest {

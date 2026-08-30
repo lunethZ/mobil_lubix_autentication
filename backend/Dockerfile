@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
 # Copy project files
 COPY . .
 
+RUN chmod +x start.sh
+
 # Install main dependencies
 RUN pip install --no-cache-dir \
     alembic==1.18.4 \
@@ -34,4 +36,4 @@ RUN pip install --no-cache-dir \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["./start.sh"]

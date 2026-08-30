@@ -97,9 +97,10 @@ export default function HomeUsuarioScreen() {
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
             {PRODUCTS.slice(0, 6).map((product) => (
-              <View
+              <TouchableOpacity
                 key={product.id}
                 style={{ width: "48%", backgroundColor: C.bgCard, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginBottom: 14, overflow: "hidden" }}
+                onPress={() => navigation.navigate("ProductoDetalle", { id: product.id })}
               >
                 <View style={{ height: 100, backgroundColor: C.bgSecondary, justifyContent: "center", alignItems: "center" }}>
                   <Text style={{ fontSize: 30 }}>{product.category === "Audio" ? "🎧" : product.category === "Cámaras" ? "📷" : product.category === "Wearables" ? "⌚" : product.category === "Gaming" ? "🎮" : product.category === "Celulares" ? "📱" : "💻"}</Text>
@@ -112,6 +113,10 @@ export default function HomeUsuarioScreen() {
                     <Text style={{ fontSize: 20 }}>{favs.includes(product.id) ? "❤️" : "🤍"}</Text>
                   </TouchableOpacity>
                   <Text numberOfLines={2} style={{ color: C.text, fontSize: 13, fontWeight: "600", height: 36 }}>{product.name}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <Text style={{ color: "#f59e0b", fontSize: 12 }}>{"★".repeat(Math.round(product.rating))}{"☆".repeat(5 - Math.round(product.rating))}</Text>
+                    <Text style={{ color: C.textSecondary, fontSize: 11 }}>{product.rating.toFixed(1)}</Text>
+                  </View>
                   <Text style={{ color: C.textSecondary, fontSize: 11 }}>{product.store}</Text>
                   {product.discount ? (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
@@ -126,8 +131,14 @@ export default function HomeUsuarioScreen() {
                   >
                     <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Agregar al carrito</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{ borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingVertical: 8, alignItems: "center", marginTop: 6 }}
+                    onPress={() => navigation.navigate("ProductoDetalle", { id: product.id })}
+                  >
+                    <Text style={{ color: C.text, fontWeight: "600", fontSize: 12 }}>Ver detalle y reseñas</Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>

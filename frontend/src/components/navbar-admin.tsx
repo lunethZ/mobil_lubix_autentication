@@ -4,30 +4,21 @@ import { useTheme } from "../context/ThemeContext";
 import { 
   UserCircleIcon, 
   ShieldCheckIcon, 
-  UsersIcon, 
-  DocumentTextIcon, 
-  CpuChipIcon,
-  ChevronDownIcon,
-  Cog6ToothIcon,
-  ChatBubbleLeftRightIcon,
   ArrowRightOnRectangleIcon
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 
-interface NavbarAdminProps {
-  onReportarCambios?: () => void;
-  onAbrirConfiguracion?: () => void;
-}
-
-export default function NavbarAdmin({ onReportarCambios, onAbrirConfiguracion }: NavbarAdminProps) {
+export default function NavbarAdmin() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     logout();
-    navigate("/login", { replace: true });
+    navigate("/login");
   };
 
   return (
@@ -43,24 +34,6 @@ export default function NavbarAdmin({ onReportarCambios, onAbrirConfiguracion }:
             Admin Root
           </span>
         </div>
-      </div>
-
-      {/* ENLACES DE CONTROL CENTRALES */}
-       <div className="hidden md:flex items-center gap-6 text-white text-sm font-medium">
-        <button onClick={() => navigate('/dashboard-admin')} className="flex items-center gap-1.5 hover:text-green-400 transition">
-          <UsersIcon className="w-5 h-5 text-gray-400" />
-          <span>Usuarios</span>
-        </button>
-
-        <button onClick={() => navigate('/dashboard-admin')} className="flex items-center gap-1.5 hover:text-green-400 transition">
-          <DocumentTextIcon className="w-5 h-5 text-gray-400" />
-          <span>Auditoría</span>
-        </button>
-
-        <button onClick={() => navigate('/dashboard-admin')} className="flex items-center gap-1.5 hover:text-green-400 transition">
-          <CpuChipIcon className="w-5 h-5 text-gray-400" />
-          <span>Sistema</span>
-        </button>
       </div>
 
       {/* ACCIONES DERECHAS: Tema + Menú de Perfil */}
@@ -111,7 +84,6 @@ export default function NavbarAdmin({ onReportarCambios, onAbrirConfiguracion }:
               <UserCircleIcon className="w-9 h-9 text-green-500 group-hover:text-green-400 transition" />
             )}
             <span className="font-medium hidden sm:inline text-sm">{user?.name || "Admin"}</span>
-            <ChevronDownIcon className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${menuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {menuOpen && (
@@ -121,34 +93,8 @@ export default function NavbarAdmin({ onReportarCambios, onAbrirConfiguracion }:
                 <ShieldCheckIcon className="w-4 h-4 text-green-400" />
                 <span>Nivel: Superusuario</span>
               </div>
-              
-              {/* Acción 1: Configuración (Se ejecuta in-page) */}
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  if (onAbrirConfiguracion) onAbrirConfiguracion();
-                }}
-                className="w-full text-left flex items-center gap-2 px-4 py-2.5 hover:bg-[#111827] hover:text-green-400 transition"
-              >
-                <Cog6ToothIcon className="w-4 h-4 text-slate-400" />
-                <span>Configuración</span>
-              </button>
 
-              {/* Acción 2: Reportar Cambios (Se ejecuta in-page) */}
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  if (onReportarCambios) onReportarCambios();
-                }}
-                className="w-full text-left flex items-center gap-2 px-4 py-2.5 hover:bg-[#111827] hover:text-green-400 transition"
-              >
-                <ChatBubbleLeftRightIcon className="w-4 h-4 text-slate-400" />
-                <span>Reportar Cambios</span>
-              </button>
-
-              <hr className="border-slate-700/60 my-1" />
-
-              {/* Acción 3: Cerrar Sesión (Redirección nativa de auth) */}
+              {/* Cerrar Sesión */}
               <button
                 onClick={handleLogout}
                 className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-rose-400 hover:bg-rose-950/40 transition font-medium"

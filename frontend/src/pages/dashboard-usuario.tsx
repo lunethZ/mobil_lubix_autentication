@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/navbaruser';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { PRODUCTOS, getFavorites } from './home-usuario';
-import type { Producto } from './home-usuario';
+const formatCOP = (value: number) => {
+  return "$" + value.toLocaleString("es-CO", { maximumFractionDigits: 0 });
+};
+
+interface Producto {
+  id: string;
+  nombre: string;
+  desc: string;
+  precio: number;
+  imagen: string;
+}
 import {
   UserIcon,
   CubeIcon,            
@@ -12,20 +21,49 @@ import {
   MapPinIcon,
   ChevronRightIcon,
   ShoppingBagIcon,
-  CameraIcon,
-  PhoneIcon,
-  EnvelopeIcon,        
   CalendarIcon,
   ShieldCheckIcon,
-  PencilSquareIcon
+  PencilSquareIcon,
+  TruckIcon,
+  CreditCardIcon,
+  XMarkIcon,
+  CheckCircleIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
 
-type Tab = 'overview' | 'orders' | 'saved' | 'profile';
+type Tab = 'overview' | 'orders' | 'saved' | 'profile' | 'integrated' | 'delete-product';
+
+interface OrderItem {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  fecha: string;
+  estado: string;
+  items: OrderItem[];
+  subtotal: number;
+  descuento: number;
+  envio: number;
+  total: number;
+  metodo: string;
+  banco: string;
+  direccionEnvio: string;
+  destinatario: string;
+  estimated_delivery: string;
+  delivery_progress: number;
+}
 
 export default function BuyerDashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const [userData, setUserData] = useState({
     name: '',
     email: '',
@@ -39,15 +77,185 @@ export default function BuyerDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [favoriteProducts, setFavoriteProducts] = useState<Producto[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState({ name: "", phone: "" });
+  const [passForm, setPassForm] = useState({ current: "", newPass: "" });
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addressForm, setAddressForm] = useState({ label: "", address: "", city: "", department: "", postal_code: "", is_default: false });
+  const [profileMsg, setProfileMsg] = useState("");
+  const [passMsg, setPassMsg] = useState("");
+  const [addressMsg, setAddressMsg] = useState("");
 
   useEffect(() => {
     fetchUserData();
   }, []);
 
   useEffect(() => {
-    const favIds = getFavorites();
-    setFavoriteProducts(PRODUCTOS.filter((p) => favIds.includes(p.id)));
+    loadFavorites();
   }, [activeTab]);
+
+  const loadFavorites = async () => {
+    try {
+      const res = await api.get("/user/favorites");
+      const items = (res.data || []).map((f: any) => ({
+        id: f.product.id,
+        nombre: f.product.name,
+        desc: f.product.descripcion,
+        precio: f.product.price,
+        antes: null,
+        descuento: f.product.discount_enable && f.product.discount_value > 0 ? `-${f.product.discount_value}%` : null,
+        imagen: f.product.images?.[0] || "/placeholder.png",
+        imagenes: f.product.images?.length ? f.product.images : ["/placeholder.png"],
+        categoria: "General",
+        stock: f.product.stock,
+        tienda: { nombre: f.product.company_name || "Tienda", logo: (f.product.company_name || "T").charAt(0), direccion: "", ciudad: "", calificacion: 0, numResenas: 0, ventas: 0, miembrosDesde: "" },
+        calificacion: 0,
+        numResenas: 0,
+        caracteristicas: [],
+        reseñas: [],
+      }));
+      setFavoriteProducts(items);
+    } catch (err) {
+      console.error("Error fetching favorites:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+    if (activeTab === 'profile') {
+      loadAddresses();
+      setProfileForm({ name: userData.name, phone: userData.phone });
+    }
+  }, [activeTab]);
+
+  const loadOrders = async () => {
+    try {
+      const res = await api.get("/user/orders");
+      const data = res.data || [];
+      const list: Order[] = data.map((o: any) => ({
+        id: o.id,
+        fecha: o.created_at,
+        estado: o.status,
+        items: (o.items || []).map((i: any) => ({
+          id: i.id,
+          name: i.name,
+          price: i.price,
+          quantity: i.quantity,
+          image: undefined,
+        })),
+        subtotal: o.subtotal,
+        descuento: o.discount,
+        envio: o.shipping,
+        total: o.total,
+        metodo: o.payment_method,
+        banco: "",
+        direccionEnvio: `${o.address}, ${o.city}`,
+        destinatario: o.recipient,
+        estimated_delivery: o.estimated_delivery || "",
+        delivery_progress: o.delivery_progress || 0,
+      }));
+      setOrders(list);
+      setUserData((prev) => ({
+        ...prev,
+        totalOrders: list.length,
+        totalSpent: list.reduce((sum, o) => sum + (o.total || 0), 0),
+      }));
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+    }
+  };
+
+  const estadoLabel = (estado: string) => {
+    const map: Record<string, string> = {
+      pending: "Pendiente",
+      paid: "Pagado",
+      shipped: "Enviado",
+      delivered: "Entregado",
+      cancelled: "Cancelado",
+    };
+    return map[estado] || estado;
+  };
+
+  const loadAddresses = async () => {
+    try {
+      const res = await api.get("/user/addresses");
+      setAddresses(res.data || []);
+      setUserData((prev) => ({ ...prev, addresses: (res.data || []).length }));
+    } catch (err) {
+      console.error("Error fetching addresses:", err);
+    }
+  };
+
+  const saveProfile = async () => {
+    setProfileMsg("");
+    try {
+      await api.patch("/user/profile", { fullName: profileForm.name, tell: profileForm.phone });
+      setProfileMsg("Perfil actualizado correctamente");
+      setUserData((prev) => ({
+        ...prev,
+        name: profileForm.name || prev.name,
+        phone: profileForm.phone || prev.phone,
+        avatar: (profileForm.name || prev.name).charAt(0).toUpperCase(),
+      }));
+    } catch (err: any) {
+      setProfileMsg(err?.response?.data?.detail || "Error al actualizar el perfil");
+    }
+  };
+
+  const savePassword = async () => {
+    setPassMsg("");
+    try {
+      await api.patch("/user/change-password", {
+        current_password: passForm.current,
+        new_password: passForm.newPass,
+      });
+      setPassMsg("Contraseña actualizada correctamente");
+      setPassForm({ current: "", newPass: "" });
+    } catch (err: any) {
+      setPassMsg(err?.response?.data?.detail || "Error al cambiar la contraseña");
+    }
+  };
+
+  const addAddress = async () => {
+    setAddressMsg("");
+    try {
+      await api.post("/user/addresses", addressForm);
+      setAddressMsg("Dirección agregada correctamente");
+      setAddressForm({ label: "", address: "", city: "", department: "", postal_code: "", is_default: false });
+      loadAddresses();
+    } catch (err: any) {
+      setAddressMsg(err?.response?.data?.detail || "Error al agregar la dirección");
+    }
+  };
+
+  const removeAddress = async (id: string) => {
+    try {
+      await api.delete(`/user/addresses/${id}`);
+      loadAddresses();
+    } catch (err) {
+      console.error("Error deleting address:", err);
+    }
+  };
+
+  const downloadData = async () => {
+    try {
+      const res = await api.get("/user/export");
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mis-datos-lubix.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error exporting data:", err);
+    }
+  };
+
+  const deleteAccount = async () => {
+    navigate('/pqrs?type=eliminacion&subject=Solicitud de eliminación de cuenta');
+  };
 
   const fetchUserData = async () => {
     setLoading(true);
@@ -81,46 +289,58 @@ export default function BuyerDashboard() {
     }
   };
 
-  const removeFavorite = (id: number) => {
-    const current = getFavorites();
-    const updated = current.filter((f) => f !== id);
-    localStorage.setItem("favorites", JSON.stringify(updated));
-    setFavoriteProducts((prev) => prev.filter((p) => p.id !== id));
-    setUserData((prev) => ({ ...prev, savedProducts: updated.length }));
+  const removeFavorite = async (productId: string) => {
+    try {
+      await api.post(`/user/favorites/${productId}`);
+      loadFavorites();
+    } catch (err) {
+      console.error("Error removing favorite:", err);
+    }
+  };
+
+  const addToCart = (p: Producto) => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const existing = cart.find((item: any) => String(item.id) === String(p.id));
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      cart.push({ id: p.id, name: p.nombre, price: p.precio, image: p.imagen, quantity: 1 });
+    }
+    localStorage.setItem("cart", JSON.stringify(cart));
+    window.dispatchEvent(new CustomEvent("cart-changed"));
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Resumen', icon: <UserIcon className="w-4 h-4" /> },
     { id: 'orders', label: 'Mis Pedidos', icon: <CubeIcon className="w-4 h-4" /> },
+    { id: 'integrated', label: 'Producto Integrado', icon: <CheckCircleIcon className="w-4 h-4" /> },
+    { id: 'delete-product', label: 'Eliminar Producto', icon: <TrashIcon className="w-4 h-4" /> },
     { id: 'saved', label: 'Guardados', icon: <HeartIcon className="w-4 h-4" /> },
     { id: 'profile', label: 'Mi Perfil', icon: <ShieldCheckIcon className="w-4 h-4" /> },
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-slate-950">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl p-8 mb-8 shadow-xl shadow-blue-500/20">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
             <div className="relative">
-              <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center text-4xl font-bold text-blue-400 shadow-lg border-4 border-white/20">
+              <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center text-4xl font-bold text-blue-400 shadow-lg border-4 border-white/20">
                 {userData.avatar}
               </div>
-              <button className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:bg-green-400 transition-colors">
-                <CameraIcon className="w-4 h-4 text-white" />
-              </button>
             </div>
             <div className="flex-1 text-center md:text-left">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{userData.name}</h1>
+              <h1 className="text-3xl font-bold text-white mb-1">{userData.name}</h1>
               <p className="text-blue-100 mb-3">{userData.email}</p>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-white/80">
                 <div className="flex items-center gap-1">
@@ -133,13 +353,16 @@ export default function BuyerDashboard() {
                 </div>
               </div>
             </div>
-            <Link
-              to="/home-usuario"
+            <button
+              onClick={() => {
+                setProfileForm({ name: userData.name, phone: userData.phone });
+                setShowProfileDrawer(true);
+              }}
               className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-4 py-2 rounded-lg transition-colors border border-white/20"
             >
               <PencilSquareIcon className="w-4 h-4" />
               Editar perfil
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -151,7 +374,7 @@ export default function BuyerDashboard() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all ${
                 activeTab === tab.id
                   ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
-                  : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:bg-slate-700'
+                  : 'bg-slate-800 text-gray-400 hover:text-gray-200 hover:bg-slate-700'
               }`}
             >
               {tab.icon}
@@ -169,38 +392,38 @@ export default function BuyerDashboard() {
                 { label: 'Guardados', value: favoriteProducts.length, icon: <HeartIcon className="w-5 h-5 text-pink-400" /> },
                 { label: 'Direcciones', value: userData.addresses, icon: <MapPinIcon className="w-5 h-5 text-yellow-400" /> },
               ].map((stat) => (
-                <div key={stat.label} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-5 hover:border-gray-200 dark:border-slate-700 transition-all">
+                <div key={stat.label} className="bg-slate-900 rounded-xl border border-slate-800 p-5 hover:border-slate-700 transition-all">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-gray-500 dark:text-gray-400 text-sm">{stat.label}</span>
+                    <span className="text-gray-400 text-sm">{stat.label}</span>
                     {stat.icon}
                   </div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                  <p className="text-2xl font-bold text-white">{stat.value}</p>
                 </div>
               ))}
             </div>
 
             {favoriteProducts.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
                 <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Productos guardados</h2>
+                  <h2 className="text-lg font-bold text-white">Productos guardados</h2>
                   <button onClick={() => setActiveTab('saved')} className="flex items-center gap-1 text-green-400 hover:text-green-300 text-sm">
                     Ver todos <ChevronRightIcon className="w-4 h-4" />
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {favoriteProducts.slice(0, 3).map((p) => (
-                    <div key={p.id} className="rounded-xl overflow-hidden bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:bg-slate-700 transition-all group cursor-pointer">
+                    <div key={p.id} className="rounded-xl overflow-hidden bg-slate-800 hover:bg-slate-700 transition-all group cursor-pointer">
                       <div className="relative">
                         <img src={p.imagen} alt={p.nombre} className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300" />
                         <button
-                          onClick={() => removeFavorite(p.id)}
-                          className="absolute top-2 right-2 w-7 h-7 bg-white dark:bg-slate-900/80 rounded-full flex items-center justify-center"
+                          onClick={() => removeFavorite(String(p.id))}
+                          className="absolute top-2 right-2 w-7 h-7 bg-slate-900/80 rounded-full flex items-center justify-center"
                         >
                           <HeartSolid className="w-3.5 h-3.5 text-pink-400" />
                         </button>
                       </div>
                       <div className="p-3">
-                        <p className="text-gray-900 dark:text-white text-sm font-medium line-clamp-1">{p.nombre}</p>
+                        <p className="text-white text-sm font-medium line-clamp-1">{p.nombre}</p>
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-green-400 font-bold text-sm">${(p.precio / 1000000).toFixed(1)}M</span>
                         </div>
@@ -212,7 +435,7 @@ export default function BuyerDashboard() {
             )}
 
             {favoriteProducts.length === 0 && (
-              <div className="text-center py-20 text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800">
+              <div className="text-center py-20 text-gray-400 bg-slate-900 rounded-xl border border-slate-800">
                 <ShoppingBagIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
                 <p className="text-lg font-medium">Bienvenido a Lubix</p>
                 <p className="text-sm mt-1">Explora productos y empieza a comprar</p>
@@ -222,21 +445,173 @@ export default function BuyerDashboard() {
         )}
 
         {activeTab === 'orders' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Todos mis pedidos</h2>
-            <div className="text-center py-16 text-gray-500 dark:text-gray-400">
-              <CubeIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">No tienes pedidos aún</p>
-              <p className="text-sm mt-1">Tus compras aparecerán aquí</p>
-            </div>
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Todos mis pedidos ({orders.length})</h2>
+            {orders.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <CubeIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No tienes pedidos aún</p>
+                <p className="text-sm mt-1">Tus compras aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="border border-slate-800 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setSelectedOrder(selectedOrder === order.id ? null : order.id)}
+                      className="w-full flex items-center gap-4 p-4 hover:bg-slate-800/60 transition-colors"
+                    >
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="flex items-center gap-3">
+                          <p className="text-white font-bold text-sm truncate">{order.id}</p>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 whitespace-nowrap">
+                            {estadoLabel(order.estado)}
+                          </span>
+                        </div>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {new Date(order.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-green-400 font-bold">${order.total.toLocaleString("es-CO")}</p>
+                        <p className="text-gray-500 text-xs">{order.items.reduce((s, i) => s + i.quantity, 0)} producto(s)</p>
+                      </div>
+                      <ChevronRightIcon className={`w-5 h-5 text-gray-400 transition-transform ${selectedOrder === order.id ? "rotate-90" : ""}`} />
+                    </button>
+
+                    {selectedOrder === order.id && (
+                      <div className="border-t border-slate-800 p-5 bg-slate-950/50 space-y-6">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Estado del envío</h3>
+                          <div className="bg-slate-800 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white text-sm font-semibold">{estadoLabel(order.estado)}</span>
+                              </div>
+                              {order.estimated_delivery && order.estado !== 'delivered' && order.estado !== 'cancelled' && (
+                                <span className="text-gray-400 text-xs">
+                                  Llega estimado: {new Date(order.estimated_delivery).toLocaleDateString("es-CO", { day: "numeric", month: "long" })}
+                                </span>
+                              )}
+                            </div>
+                            <div className="relative mb-3">
+                              <div className="w-full bg-slate-700 rounded-full h-3">
+                                <div
+                                  className={`h-3 rounded-full transition-all duration-1000 ease-out ${
+                                    order.estado === 'cancelled' ? 'bg-red-500' : 'bg-gradient-to-r from-green-600 to-emerald-400'
+                                  }`}
+                                  style={{ width: `${order.delivery_progress}%` }}
+                                />
+                              </div>
+                              {order.estado !== 'cancelled' && (
+                                <div
+                                  className="absolute top-1/2 -translate-y-1/2 transition-all duration-1000 ease-out"
+                                  style={{ left: `calc(${Math.min(order.delivery_progress, 95)}% - 12px)` }}
+                                >
+                                  <div className="relative">
+                                    <svg width="28" height="20" viewBox="0 0 28 20" fill="none" className="drop-shadow-lg">
+                                      <rect x="0" y="4" width="18" height="12" rx="2" fill="#22c55e"/>
+                                      <rect x="18" y="7" width="8" height="9" rx="1" fill="#16a34a"/>
+                                      <rect x="2" y="6" width="5" height="4" rx="1" fill="#86efac" opacity="0.7"/>
+                                      <rect x="8" y="6" width="5" height="4" rx="1" fill="#86efac" opacity="0.7"/>
+                                      <circle cx="6" cy="17" r="2.5" fill="#333" stroke="#555" strokeWidth="0.5"/>
+                                      <circle cx="6" cy="17" r="1" fill="#888"/>
+                                      <circle cx="22" cy="17" r="2.5" fill="#333" stroke="#555" strokeWidth="0.5"/>
+                                      <circle cx="22" cy="17" r="1" fill="#888"/>
+                                    </svg>
+                                    {order.delivery_progress > 0 && order.delivery_progress < 100 && (
+                                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span className={order.delivery_progress >= 15 ? 'text-green-400' : ''}>Confirmado</span>
+                              <span className={order.delivery_progress >= 35 ? 'text-green-400' : ''}>Confirmado</span>
+                              <span className={order.delivery_progress >= 65 ? 'text-green-400' : ''}>Enviado</span>
+                              <span className={order.delivery_progress >= 100 ? 'text-green-400' : ''}>Entregado</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Productos</h3>
+                          <div className="space-y-3">
+                            {order.items.map((item) => (
+                              <div key={item.id} className="flex items-center gap-3">
+                                {item.image ? (
+                                  <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover bg-slate-800" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-gray-500">
+                                    <CubeIcon className="w-5 h-5" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white text-sm font-medium truncate">{item.name}</p>
+                                  <p className="text-gray-500 text-xs">Cantidad: {item.quantity}</p>
+                                </div>
+                                <p className="text-white text-sm font-semibold">${(item.price * item.quantity).toLocaleString("es-CO")}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Resumen</h3>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Subtotal</span>
+                                <span className="text-white">${order.subtotal.toLocaleString("es-CO")}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Descuento</span>
+                                <span className="text-green-400">-${order.descuento.toLocaleString("es-CO")}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Envío</span>
+                                <span className="text-white">{order.envio === 0 ? 'GRATIS' : `$${order.envio.toLocaleString("es-CO")}`}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t border-slate-800">
+                                <span className="text-gray-300 font-semibold">Total</span>
+                                <span className="text-green-400 font-bold">${order.total.toLocaleString("es-CO")}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Envío y pago</h3>
+                            <div className="space-y-2 text-sm">
+                              <p className="flex items-center gap-2 text-gray-400">
+                                <TruckIcon className="w-4 h-4 text-green-500" />
+                                {order.direccionEnvio}
+                              </p>
+                              <p className="flex items-center gap-2 text-gray-400">
+                                <CreditCardIcon className="w-4 h-4 text-green-500" />
+                                {order.metodo === "tarjeta" ? "Tarjeta de crédito/débito" : order.metodo === "pse" ? "PSE" : order.metodo === "efectivo" ? "Pago contra entrega (efectivo)" : order.metodo}
+                              </p>
+                              <p className="flex items-center gap-2 text-gray-400">
+                                <UserIcon className="w-4 h-4 text-green-500" />
+                                {order.destinatario}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'saved' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Productos guardados ({favoriteProducts.length})</h2>
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Productos guardados ({favoriteProducts.length})</h2>
             {favoriteProducts.length === 0 ? (
-              <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-16 text-gray-400">
                 <HeartIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
                 <p className="text-lg font-medium">No tienes productos guardados</p>
                 <p className="text-sm mt-1">Ve al inicio y haz clic en el corazón para guardar productos</p>
@@ -244,12 +619,12 @@ export default function BuyerDashboard() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
                 {favoriteProducts.map((p) => (
-                  <div key={p.id} className="rounded-xl overflow-hidden bg-gray-100 dark:bg-slate-800 hover:shadow-lg hover:shadow-blue-500/10 transition-all group">
+                    <div key={p.id} className="rounded-xl overflow-hidden bg-slate-800 hover:shadow-lg hover:shadow-blue-500/10 transition-all group">
                     <div className="relative">
                       <img src={p.imagen} alt={p.nombre} className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300" />
                       <button
-                        onClick={() => removeFavorite(p.id)}
-                        className="absolute top-3 right-3 w-8 h-8 bg-white dark:bg-slate-900/80 rounded-full flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                        onClick={() => removeFavorite(String(p.id))}
+                        className="absolute top-3 right-3 w-8 h-8 bg-slate-900/80 rounded-full flex items-center justify-center hover:bg-red-500/20 transition-colors"
                       >
                         <HeartSolid className="w-4 h-4 text-pink-400" />
                       </button>
@@ -259,7 +634,10 @@ export default function BuyerDashboard() {
                       <div className="flex items-center justify-between">
                         <span className="text-green-400 font-bold text-lg">${p.precio.toLocaleString('es-CO')}</span>
                       </div>
-                      <button className="w-full mt-3 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg font-medium transition-colors">
+                      <button
+                        onClick={() => addToCart(p)}
+                        className="w-full mt-3 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg font-medium transition-colors"
+                      >
                         Agregar al carrito
                       </button>
                     </div>
@@ -270,50 +648,365 @@ export default function BuyerDashboard() {
           </div>
         )}
 
-        {activeTab === 'profile' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
-                <UserIcon className="w-5 h-5 text-blue-400" /> Información personal
-              </h2>
+        {activeTab === 'integrated' && (
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Productos Integrados</h2>
+            {orders.filter(o => o.estado === 'delivered').length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <CheckCircleIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No tienes productos integrados aún</p>
+                <p className="text-sm mt-1">Los productos de pedidos entregados aparecerán aquí</p>
+              </div>
+            ) : (
               <div className="space-y-4">
-                {[
-                  { label: 'Nombre completo', value: userData.name, icon: <UserIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" /> },
-                  { label: 'Correo electrónico', value: userData.email, icon: <EnvelopeIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" /> },
-                  { label: 'Teléfono', value: userData.phone, icon: <PhoneIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" /> },
-                  { label: 'Miembro desde', value: userData.memberSince, icon: <CalendarIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" /> },
-                ].map((field) => (
-                  <div key={field.label} className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-slate-800 rounded-lg">
-                    {field.icon}
-                    <div className="flex-1">
-                      <p className="text-gray-500 text-xs">{field.label}</p>
-                      <p className="text-gray-900 dark:text-white text-sm font-medium">{field.value}</p>
+                {orders.filter(o => o.estado === 'delivered').map((order) => (
+                  <div key={order.id} className="border border-green-500/30 rounded-xl p-4 bg-green-500/5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                      <span className="text-green-400 font-semibold text-sm">Producto entregado e integrado</span>
+                      <span className="text-gray-500 text-xs ml-auto">
+                        {new Date(order.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-3 bg-slate-800 rounded-lg p-3">
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
+                              <CubeIcon className="w-4 h-4 text-gray-500" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{item.name}</p>
+                            <p className="text-gray-500 text-xs">Cantidad: {item.quantity}</p>
+                          </div>
+                          <p className="text-green-400 text-sm font-semibold">${(item.price * item.quantity).toLocaleString("es-CO")}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
+          </div>
+        )}
 
-            <div className="space-y-5">
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <ShieldCheckIcon className="w-5 h-5 text-green-400" /> Seguridad
+        {activeTab === 'delete-product' && (
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Eliminar Producto</h2>
+            <p className="text-gray-400 text-sm mb-6">Selecciona un producto de tus pedidos para solicitar su eliminación o reportar un problema.</p>
+            {orders.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <TrashIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No tienes productos en pedidos</p>
+                <p className="text-sm mt-1">Realiza una compra para poder gestionar tus productos</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((order) =>
+                  order.items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-4 p-4 bg-slate-800 rounded-xl border border-slate-700 hover:border-red-500/30 transition-colors">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center">
+                          <CubeIcon className="w-5 h-5 text-gray-500" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{item.name}</p>
+                        <p className="text-gray-500 text-xs">Pedido: {order.id.slice(0, 8)}... · {estadoLabel(order.estado)}</p>
+                      </div>
+                      <p className="text-white text-sm font-semibold mr-3">${item.price.toLocaleString("es-CO")}</p>
+                      <button
+                        onClick={() => navigate(`/pqrs?type=queja&subject=Problema con producto: ${item.name}`)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 rounded-lg text-xs font-semibold transition-all"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                        Reportar
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'profile' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                  <UserIcon className="w-5 h-5 text-blue-400" /> Editar información
                 </h2>
-                <div className="space-y-3">
-                  <button className="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:bg-slate-700 rounded-lg transition-colors">
-                    <span className="text-white text-sm">Cambiar contraseña</span>
-                    <ChevronRightIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  </button>
-                  <button className="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:bg-slate-700 rounded-lg transition-colors">
-                    <span className="text-white text-sm">Verificación en 2 pasos</span>
-                    <ChevronRightIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Nombre completo</label>
+                    <input
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Teléfono</label>
+                    <input
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Correo electrónico</label>
+                    <input value={userData.email} disabled className="w-full px-3 py-2 bg-slate-800/50 border border-slate-800 rounded-lg text-gray-500 text-sm cursor-not-allowed" />
+                  </div>
+                  {profileMsg && <p className={`text-sm ${profileMsg.startsWith("Perfil") ? "text-green-400" : "text-red-400"}`}>{profileMsg}</p>}
+                  <button onClick={saveProfile} className="w-full py-2.5 bg-green-500 hover:bg-green-400 text-white rounded-lg font-medium transition-colors">
+                    Guardar cambios
                   </button>
                 </div>
+              </div>
+
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                  <ShieldCheckIcon className="w-5 h-5 text-green-400" /> Seguridad
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Contraseña actual</label>
+                    <input
+                      type="password"
+                      value={passForm.current}
+                      onChange={(e) => setPassForm((prev) => ({ ...prev, current: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Nueva contraseña</label>
+                    <input
+                      type="password"
+                      value={passForm.newPass}
+                      onChange={(e) => setPassForm((prev) => ({ ...prev, newPass: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  {passMsg && <p className={`text-sm ${passMsg.startsWith("Contraseña actualizada") ? "text-green-400" : "text-red-400"}`}>{passMsg}</p>}
+                  <button onClick={savePassword} className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors">
+                    Cambiar contraseña
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5 text-blue-400" /> Mis datos
+                </h2>
+                <button onClick={downloadData} className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors mb-3">
+                  <span className="text-white text-sm">Descargar mis datos</span>
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                </button>
+                <button onClick={deleteAccount} className="w-full flex items-center justify-between p-3 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors">
+                  <span className="text-red-400 text-sm">Eliminar mi cuenta</span>
+                  <ChevronRightIcon className="w-4 h-4 text-red-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                <MapPinIcon className="w-5 h-5 text-yellow-400" /> Mis direcciones
+              </h2>
+
+              <div className="space-y-4 mb-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <input value={addressForm.label} onChange={(e) => setAddressForm((prev) => ({ ...prev, label: e.target.value }))} placeholder="Etiqueta (Casa, Oficina)" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                  <input value={addressForm.postal_code} onChange={(e) => setAddressForm((prev) => ({ ...prev, postal_code: e.target.value }))} placeholder="Código postal" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                </div>
+                <input value={addressForm.address} onChange={(e) => setAddressForm((prev) => ({ ...prev, address: e.target.value }))} placeholder="Dirección" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input value={addressForm.city} onChange={(e) => setAddressForm((prev) => ({ ...prev, city: e.target.value }))} placeholder="Ciudad" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                  <input value={addressForm.department} onChange={(e) => setAddressForm((prev) => ({ ...prev, department: e.target.value }))} placeholder="Departamento" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                  <input type="checkbox" checked={addressForm.is_default} onChange={(e) => setAddressForm((prev) => ({ ...prev, is_default: e.target.checked }))} className="w-4 h-4 accent-green-500" />
+                  Usar como dirección principal
+                </label>
+                {addressMsg && <p className={`text-sm ${addressMsg.startsWith("Dirección agregada") ? "text-green-400" : "text-red-400"}`}>{addressMsg}</p>}
+                <button onClick={addAddress} className="w-full py-2.5 bg-green-500 hover:bg-green-400 text-white rounded-lg font-medium transition-colors">
+                  Agregar dirección
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {addresses.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center py-4">No tienes direcciones guardadas</p>
+                ) : (
+                  addresses.map((addr) => (
+                    <div key={addr.id} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
+                      <div className="min-w-0">
+                        <p className="text-white text-sm font-medium">
+                          {addr.label || "Dirección"} {addr.is_default && <span className="text-xs text-green-400 ml-1">(principal)</span>}
+                        </p>
+                        <p className="text-gray-500 text-xs truncate">{addr.address}, {addr.city}, {addr.department}</p>
+                      </div>
+                      <button onClick={() => removeAddress(addr.id)} className="ml-3 text-red-400 hover:text-red-300 text-sm whitespace-nowrap">
+                        Eliminar
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {showProfileDrawer && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowProfileDrawer(false)} />
+          <div className="relative w-full max-w-md bg-slate-900 border-l border-slate-700 shadow-2xl overflow-y-auto animate-slide-in-right">
+            <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 p-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <PencilSquareIcon className="w-5 h-5 text-blue-400" />
+                Mi perfil
+              </h2>
+              <button
+                onClick={() => setShowProfileDrawer(false)}
+                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+                  <UserIcon className="w-4 h-4" /> Información personal
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Nombre completo</label>
+                    <input
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Teléfono</label>
+                    <input
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Correo electrónico</label>
+                    <input value={userData.email} disabled className="w-full px-3 py-2 bg-slate-800/50 border border-slate-800 rounded-lg text-gray-500 text-sm cursor-not-allowed" />
+                  </div>
+                  {profileMsg && <p className={`text-sm ${profileMsg.startsWith("Perfil") ? "text-green-400" : "text-red-400"}`}>{profileMsg}</p>}
+                  <button onClick={saveProfile} className="w-full py-2.5 bg-green-500 hover:bg-green-400 text-white rounded-lg font-medium transition-colors">
+                    Guardar cambios
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800 pt-6">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+                  <ShieldCheckIcon className="w-4 h-4" /> Seguridad
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Contraseña actual</label>
+                    <input
+                      type="password"
+                      value={passForm.current}
+                      onChange={(e) => setPassForm((prev) => ({ ...prev, current: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Nueva contraseña</label>
+                    <input
+                      type="password"
+                      value={passForm.newPass}
+                      onChange={(e) => setPassForm((prev) => ({ ...prev, newPass: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  {passMsg && <p className={`text-sm ${passMsg.startsWith("Contraseña actualizada") ? "text-green-400" : "text-red-400"}`}>{passMsg}</p>}
+                  <button onClick={savePassword} className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors">
+                    Cambiar contraseña
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800 pt-6">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+                  <MapPinIcon className="w-4 h-4" /> Direcciones
+                </h3>
+                <div className="space-y-3 mb-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <input value={addressForm.label} onChange={(e) => setAddressForm((prev) => ({ ...prev, label: e.target.value }))} placeholder="Etiqueta (Casa, Oficina)" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                    <input value={addressForm.postal_code} onChange={(e) => setAddressForm((prev) => ({ ...prev, postal_code: e.target.value }))} placeholder="Código postal" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                  </div>
+                  <input value={addressForm.address} onChange={(e) => setAddressForm((prev) => ({ ...prev, address: e.target.value }))} placeholder="Dirección" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input value={addressForm.city} onChange={(e) => setAddressForm((prev) => ({ ...prev, city: e.target.value }))} placeholder="Ciudad" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                    <input value={addressForm.department} onChange={(e) => setAddressForm((prev) => ({ ...prev, department: e.target.value }))} placeholder="Departamento" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500" />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                    <input type="checkbox" checked={addressForm.is_default} onChange={(e) => setAddressForm((prev) => ({ ...prev, is_default: e.target.checked }))} className="w-4 h-4 accent-green-500" />
+                    Usar como dirección principal
+                  </label>
+                  {addressMsg && <p className={`text-sm ${addressMsg.startsWith("Dirección agregada") ? "text-green-400" : "text-red-400"}`}>{addressMsg}</p>}
+                  <button onClick={addAddress} className="w-full py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg font-medium transition-colors">
+                    Agregar dirección
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {addresses.length === 0 ? (
+                    <p className="text-gray-500 text-sm text-center py-3">No tienes direcciones guardadas</p>
+                  ) : (
+                    addresses.map((addr) => (
+                      <div key={addr.id} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-medium">
+                            {addr.label || "Dirección"} {addr.is_default && <span className="text-xs text-green-400 ml-1">(principal)</span>}
+                          </p>
+                          <p className="text-gray-500 text-xs truncate">{addr.address}, {addr.city}, {addr.department}</p>
+                        </div>
+                        <button onClick={() => removeAddress(addr.id)} className="ml-3 text-red-400 hover:text-red-300 text-sm whitespace-nowrap">
+                          Eliminar
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800 pt-6 pb-4">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" /> Mis datos
+                </h3>
+                <div className="space-y-2">
+                  <button onClick={downloadData} className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                    <span className="text-white text-sm">Descargar mis datos</span>
+                    <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <button onClick={deleteAccount} className="w-full flex items-center justify-between p-3 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors">
+                    <span className="text-red-400 text-sm">Eliminar mi cuenta</span>
+                    <ChevronRightIcon className="w-4 h-4 text-red-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

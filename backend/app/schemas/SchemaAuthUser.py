@@ -100,3 +100,9 @@ class TokenResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     old_refresh_token: str
+
+class ResendVerification(BaseModel):
+    email: EmailStr
+
+class LogoutRequest(BaseModel):
+    refresh_token: str = None

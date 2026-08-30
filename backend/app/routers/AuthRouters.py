@@ -12,6 +12,7 @@ from app.services.authentication.AuthService import (
     forgot_password_service,
     reset_password_service,
     refresh_token_service,
+    resend_verification_service,
     logout_service
 )
 from sqlalchemy.orm import Session
@@ -22,7 +23,9 @@ from app.schemas.SchemaAuthUser import (
     userLogin, 
     forgotPassword, 
     ResetPassword,
-    RefreshRequest
+    RefreshRequest,
+    ResendVerification,
+    LogoutRequest
 )
 from app.schemas.SchemaAuthCompany import createCompany, LoginCompany
 from app.services.NasService import subir
@@ -98,6 +101,11 @@ def forgot_password(user: forgotPassword, database: Session = Depends(get_db)):
 
     return forgot_password_service(user, database)
 
+@router.post("/resend-verification")
+def resend_verification(user: ResendVerification, database: Session = Depends(get_db)):
+
+    return resend_verification_service(user.email, database)
+
 @router.post("/reset-password-user")
 def reset_password(user: ResetPassword, database: Session = Depends(get_db)):
  
@@ -109,8 +117,6 @@ def refresh_token(data:RefreshRequest, database: Session = Depends(get_db)):
     return refresh_token_service(data, database)
 
 @router.post("/logout")
-def logout():
+def logout(body: LogoutRequest, database: Session = Depends(get_db)):
     
-    return {
-        "saliendo del inicio de session"
-    }
+    return logout_service(body.refresh_token, database)

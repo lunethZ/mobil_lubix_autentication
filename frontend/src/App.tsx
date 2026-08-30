@@ -16,6 +16,8 @@ import CartPage from "./pages/carrito";
 import PagarPage from "./pages/pagar";
 import { useAuth } from "./context/AuthContext";
 import DashboardAdmin from "./pages/dashboardadmin";
+import ProductoDetalle from "./pages/producto-detalle";
+import PQRSPage from "./pages/pqrs";
 
 function ProtectedRoute({ allowedRoles, children }: { allowedRoles?: Array<"user" | "empresa" | "admin">, children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuth();
@@ -91,7 +93,9 @@ function App() {
       <Route path="/carrito" element={<ProtectedRoute allowedRoles={["user"]}><CartPage /></ProtectedRoute>} />
       <Route path="/pago" element={<ProtectedRoute allowedRoles={["user"]}><PagarPage /></ProtectedRoute>} />
       <Route path="/buscar" element={<BuscarProducto />} />
+      <Route path="/producto/:id" element={<ProductoDetalle />} />
       <Route path="/productos" element={<Productos />} />
+      <Route path="/pqrs" element={<PQRSPage />} />
       <Route path="/dashboard-admin" element={<ProtectedAdminRoute />} />
     </Routes>
   );
