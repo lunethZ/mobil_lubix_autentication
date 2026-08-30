@@ -75,7 +75,7 @@ export default function DashboardAdminPage() {
     : RECIENTES_LOGS.filter(log => log.modulo === filtroModulo);
 
   return (
-    <div className="bg-[#030712] min-h-screen text-slate-100 flex flex-col font-sans">
+    <div className="bg-white dark:bg-[#030712] min-h-screen text-gray-900 dark:text-slate-100 flex flex-col font-sans">
       {/* Navbar de Administración Unificado */}
       <NavbarAdmin />
 
@@ -84,17 +84,17 @@ export default function DashboardAdminPage() {
         
         {/* Encabezado Principal */}
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Panel de Administración General</h1>
-          <p className="text-sm text-slate-400 mt-1">Monitoreo global de operaciones, finanzas y registros del sistema.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Panel de Administración General</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Monitoreo global de operaciones, finanzas y registros del sistema.</p>
         </div>
 
         {/* Rejilla de Indicadores Clave (KPIs) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {METRICAS_GENERALES.map((kpi, idx) => (
-            <div key={idx} className="bg-[#1f2937] p-5 rounded-xl border border-slate-700/70 shadow-md">
-              <span className="text-xs text-slate-400 block uppercase font-mono tracking-wider">{kpi.title}</span>
+            <div key={idx} className="bg-white dark:bg-[#1f2937] p-5 rounded-xl border border-gray-200 dark:border-slate-700/70 shadow-md">
+              <span className="text-xs text-gray-500 dark:text-slate-400 block uppercase font-mono tracking-wider">{kpi.title}</span>
               <div className="flex items-baseline justify-between mt-2">
-                <span className="text-xl font-bold text-white tracking-tight">
+                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
                   {kpi.type === 'currency' 
                     ? formatCOP(kpi.value) 
                     : kpi.type === 'percentage' 
@@ -118,14 +118,14 @@ export default function DashboardAdminPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* COLUMNA IZQUIERDA: Gráfica Financiera (Ocupa 2 columnas de ancho) */}
-          <div className="bg-[#1f2937] p-6 rounded-xl border border-slate-700/70 shadow-md lg:col-span-2 flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#1f2937] p-6 rounded-xl border border-gray-200 dark:border-slate-700/70 shadow-md lg:col-span-2 flex flex-col justify-between">
             <div className="mb-6">
-              <h3 className="text-base font-bold text-white tracking-tight">Tendencia de Ingresos Mensuales</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Expresado en millones de pesos ($M COP).</p>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">Tendencia de Ingresos Mensuales</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Expresado en millones de pesos ($M COP).</p>
             </div>
             
             {/* Contenedor del Área de Barras con altura explícita (h-48) para cálculo en React */}
-            <div className="flex items-end justify-between h-48 pt-6 px-4 border-b border-l border-slate-600 relative">
+            <div className="flex items-end justify-between h-48 pt-6 px-4 border-b border-l border-gray-300 dark:border-slate-600 relative">
               {HISTORIAL_INGRESOS.map((item, index) => {
                 // Cálculo porcentual exacto respecto al máximo definido
                 const alturaPorcentaje = (item.valor / VALOR_MAXIMO_GRAFICA) * 100;
@@ -144,7 +144,7 @@ export default function DashboardAdminPage() {
                     />
                     
                     {/* Nombre del Mes */}
-                    <span className="text-xs text-slate-400 mt-2 font-medium">
+                    <span className="text-xs text-gray-500 dark:text-slate-400 mt-2 font-medium">
                       {item.mes}
                     </span>
                   </div>
@@ -154,18 +154,18 @@ export default function DashboardAdminPage() {
           </div>
 
           {/* COLUMNA DERECHA: Auditoría del Sistema (Ocupa 1 columna de ancho) */}
-          <div className="bg-[#1f2937] p-6 rounded-xl border border-slate-700/70 shadow-md flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#1f2937] p-6 rounded-xl border border-gray-200 dark:border-slate-700/70 shadow-md flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-base font-bold text-white tracking-tight">Auditoría del Sistema</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Acciones recientes de usuarios.</p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">Auditoría del Sistema</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Acciones recientes de usuarios.</p>
               </div>
               
               {/* Filtro por Módulo */}
               <select 
                 value={filtroModulo} 
                 onChange={(e) => setFiltroModulo(e.target.value)}
-                className="bg-[#030712] text-xs text-slate-300 border border-slate-600 rounded-md py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-green-500 transition cursor-pointer"
+                className="bg-white dark:bg-[#030712] text-xs text-gray-600 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-md py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-green-500 transition cursor-pointer"
               >
                 <option value="Todos">Todos</option>
                 <option value="Inventario">Inventario</option>
@@ -178,16 +178,16 @@ export default function DashboardAdminPage() {
             {/* Lista con Scroll Interno para los Eventos */}
             <div className="space-y-3 h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700">
               {logsFiltrados.map((log) => (
-                <div key={log.id} className="p-3 bg-[#030712] rounded-lg border border-slate-700/50 text-xs flex justify-between items-start">
+                <div key={log.id} className="p-3 bg-white dark:bg-[#030712] rounded-lg border border-gray-200 dark:border-slate-700/50 text-xs flex justify-between items-start">
                   <div className="space-y-1">
-                    <span className="font-semibold text-slate-200 block">{log.usuario}</span>
-                    <p className="text-slate-400 font-sans line-clamp-1">{log.accion}</p>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider font-semibold">
+                    <span className="font-semibold text-gray-700 dark:text-slate-200 block">{log.usuario}</span>
+                    <p className="text-gray-500 dark:text-slate-400 font-sans line-clamp-1">{log.accion}</p>
+                    <span className="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider font-semibold">
                       {log.modulo}
                     </span>
                   </div>
                   <div className="text-right flex flex-col items-end justify-between h-full min-h-[42px] ml-2">
-                    <span className="text-[10px] text-slate-500 font-medium whitespace-nowrap">{log.hora}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-slate-500 font-medium whitespace-nowrap">{log.hora}</span>
                     <span className={`w-2 h-2 rounded-full mt-1.5 ${
                       log.estado === 'completado' 
                         ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' 
@@ -200,7 +200,7 @@ export default function DashboardAdminPage() {
               ))}
 
               {logsFiltrados.length === 0 && (
-                <div className="flex items-center justify-center h-full text-center text-slate-500 text-xs py-4">
+                <div className="flex items-center justify-center h-full text-center text-gray-400 dark:text-slate-500 text-xs py-4">
                   No hay registros en este módulo.
                 </div>
               )}
