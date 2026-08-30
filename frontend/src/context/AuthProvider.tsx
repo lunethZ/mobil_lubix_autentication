@@ -40,6 +40,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isUser = () => user?.role_id === "user";
   const isCompany = () => user?.role_id === "empresa";
 
+  const isAdmin = () => user?.role_id === "admin";
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -47,7 +49,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       login, 
       logout,
       isUser,
-      isCompany
+      isCompany,
+      isAdmin,
     }}>
       {children}
     </AuthContext.Provider>

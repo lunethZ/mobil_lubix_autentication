@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.Connection import get_db
@@ -25,12 +26,19 @@ def get_pending_companies(database: Session = Depends(get_db)):
         .filter(Users.verified == False)
         .all()
     )
-    return pending
+    return [
+        {"id": str(r.id), "companyName": r.companyName, "companyNIT": r.companyNIT, "email": r.email}
+        for r in pending
+    ]
 
 # Activa/verifica la empresa
 @router.post("/approve-company/{company_id}")
-def approve_company(company_id: int, database: Session = Depends(get_db)):
-    company = database.query(Company).filter(Company.id == company_id).first()
+def approve_company(company_id: str, database: Session = Depends(get_db)):
+    try:
+        cid = uuid.UUID(company_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID de empresa inválido")
+    company = database.query(Company).filter(Company.id == cid).first()
     if not company:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
     

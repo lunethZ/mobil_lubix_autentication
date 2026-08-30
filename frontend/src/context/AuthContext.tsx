@@ -14,6 +14,7 @@ interface AuthContextType {
   logout: () => void;
   isUser: () => boolean;
   isCompany: () => boolean;
+  isAdmin: () => boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);

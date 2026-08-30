@@ -48,18 +48,18 @@ export default function NavbarAdmin({ onReportarCambios, onAbrirConfiguracion }:
       </div>
 
       {/* ENLACES DE CONTROL CENTRALES */}
-      <div className="hidden md:flex items-center gap-6 text-white text-sm font-medium">
-        <button className="flex items-center gap-1.5 hover:text-green-400 transition">
+       <div className="hidden md:flex items-center gap-6 text-white text-sm font-medium">
+        <button onClick={() => navigate('/dashboard-admin')} className="flex items-center gap-1.5 hover:text-green-400 transition">
           <UsersIcon className="w-5 h-5 text-gray-400" />
           <span>Usuarios</span>
         </button>
 
-        <button className="flex items-center gap-1.5 hover:text-green-400 transition">
+        <button onClick={() => navigate('/dashboard-admin')} className="flex items-center gap-1.5 hover:text-green-400 transition">
           <DocumentTextIcon className="w-5 h-5 text-gray-400" />
           <span>Auditoría</span>
         </button>
 
-        <button className="flex items-center gap-1.5 hover:text-green-400 transition">
+        <button onClick={() => navigate('/dashboard-admin')} className="flex items-center gap-1.5 hover:text-green-400 transition">
           <CpuChipIcon className="w-5 h-5 text-gray-400" />
           <span>Sistema</span>
         </button>

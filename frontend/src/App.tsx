@@ -1,5 +1,5 @@
 
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/login";
 import Register from "./pages/register";
 import RecoverPassword from "./pages/reset-password";
@@ -14,8 +14,16 @@ import BuscarProducto from "./pages/buscar-producto";
 import Productos from "./pages/productos";
 import CartPage from "./pages/carrito";
 import PagarPage from "./pages/pagar";
-import DashboardAdmin from "./pages/dashboardadmin"; // Importa el componente DashboardAdmin
+import { useAuth } from "./context/AuthContext";
+import DashboardAdmin from "./pages/dashboardadmin";
 
+function ProtectedAdminRoute() {
+  const { user, isAuthenticated } = useAuth();
+  if (!isAuthenticated || !user || user.role_id !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+  return <DashboardAdmin />;
+}
 
 function App() {
   return (
@@ -34,7 +42,7 @@ function App() {
       <Route path="/pago" element={<PagarPage />} />
       <Route path="/buscar" element={<BuscarProducto/>} />
       <Route path="/productos" element={<Productos/>} />
-      <Route path="/dashboard-admin" element={<DashboardAdmin />} /> {/* Ruta para el DashboardAdmin */}
+      <Route path="/dashboard-admin" element={<ProtectedAdminRoute />} />
     </Routes>
   );
 }
