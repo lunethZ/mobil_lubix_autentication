@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.database.Connection import SessionLocal
-<<<<<<< HEAD
 from app.routers import AuthRouters
 from app.routers import HealthRouter
 from app.routers import CompanyRouter
@@ -17,7 +16,6 @@ from app.utils.seed import run_seed
 from app.Config import config
 
 
-<
 @asynccontextmanager
 async def lifespan(app):
     db = SessionLocal()
