@@ -4,6 +4,7 @@ from app.database.Connection import get_db
 from app.models.ModelUser import Users
 from app.models.ModelCompany import Company
 from app.models.ModelRole import Role
+from app.models.ModelPQRS import PQRS
 
 router = APIRouter(
     prefix="/admin",
@@ -126,3 +127,32 @@ def validate_company(company_id: str, request: Request, database: Session = Depe
         "verified": user.verified,
         "isActive": user.isActive
     }
+
+@router.get("/pqrs")
+def list_pqrs_admin(request: Request, database: Session = Depends(get_db)):
+    pqrs_list = database.query(PQRS).order_by(PQRS.created_at.desc()).all()
+    # Para enriquecer con datos de usuario
+    result = []
+    for p in pqrs_list:
+        u = database.query(Users).filter(Users.id == p.user_id).first()
+        result.append({
+            "id": str(p.id),
+            "type": p.type,
+            "subject": p.subject,
+            "description": p.description,
+            "status": p.status,
+            "user_role": p.user_role,
+            "user_name": u.fullName if u else "Desconocido",
+            "user_email": u.email if u else "",
+            "created_at": p.created_at,
+        })
+    return result
+
+@router.patch("/pqrs/{pqrs_id}/status")
+def resolve_pqrs(pqrs_id: str, request: Request, database: Session = Depends(get_db)):
+    pqrs = database.query(PQRS).filter(PQRS.id == pqrs_id).first()
+    if not pqrs:
+        raise HTTPException(status_code=404, detail="PQRS no encontrada")
+    pqrs.status = "resolved"
+    database.commit()
+    return {"message": "PQRS marcada como resuelta", "id": str(pqrs.id), "status": pqrs.status}
