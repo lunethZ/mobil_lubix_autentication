@@ -92,6 +92,8 @@ interface SellerInfo {
   totalRevenue: number;
   totalReviews: number;
   avatar: string;
+  avatarUrl: string;
+  bannerUrl: string;
   sellerLevel: string;
   levelProgress: number;
 }
@@ -124,6 +126,8 @@ const INITIAL_SELLER_INFO: SellerInfo = {
   totalRevenue: 0,
   totalReviews: 0,
   avatar: '',
+  avatarUrl: '',
+  bannerUrl: '',
   sellerLevel: 'Bronze',
   levelProgress: 0,
 };
@@ -218,6 +222,8 @@ export default function SellerDashboard() {
         totalRevenue: me.totalRevenue || profile.totalRevenue || 0,
         totalReviews: me.reviews || profile.totalReviews || 0,
         avatar: (me.nameCompany || "V").charAt(0).toUpperCase(),
+        avatarUrl: me.logo ? resolveImageUrl(me.logo) : "",
+        bannerUrl: me.banner ? resolveImageUrl(me.banner) : "",
         sellerLevel,
         levelProgress,
       });
@@ -646,11 +652,16 @@ export default function SellerDashboard() {
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl p-8 mb-8 shadow-xl shadow-green-500/20">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+        <div className={`relative overflow-hidden rounded-2xl p-8 mb-8 shadow-xl shadow-green-500/20 ${sellerInfo.bannerUrl ? '' : 'bg-gradient-to-r from-green-600 to-blue-600'}`} style={sellerInfo.bannerUrl ? { backgroundImage: `url(${sellerInfo.bannerUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+          {sellerInfo.bannerUrl && <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"></div>}
+          <div className="relative flex flex-col md:flex-row items-center md:items-start gap-6">
             <div className="relative">
-              <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center text-4xl font-bold text-green-500 shadow-lg border-4 border-white/20">
-                {sellerInfo.avatar}
+              <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center text-4xl font-bold text-green-500 shadow-lg border-4 border-white/20 overflow-hidden">
+                {sellerInfo.avatarUrl ? (
+                  <img src={sellerInfo.avatarUrl} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  sellerInfo.avatar
+                )}
               </div>
               <label className="absolute bottom-0 right-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-400 transition-colors cursor-pointer">
                 <CameraIcon className="w-4 h-4 text-white" />
@@ -1565,7 +1576,11 @@ export default function SellerDashboard() {
                 </h3>
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center text-3xl font-bold text-green-500 border-2 border-dashed border-slate-700 overflow-hidden">
-                    {sellerInfo.avatar}
+                    {sellerInfo.avatarUrl ? (
+                      <img src={sellerInfo.avatarUrl} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      sellerInfo.avatar
+                    )}
                   </div>
                   <label className="flex-1 cursor-pointer">
                     <div className="flex items-center justify-center gap-2 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm text-gray-300 transition-colors">
@@ -1581,29 +1596,29 @@ export default function SellerDashboard() {
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
                   <CameraIcon className="w-4 h-4" /> Banner de la tienda
                 </h3>
-                <label className="cursor-pointer block">
-                  <div className="flex items-center justify-center gap-2 py-6 bg-slate-800 hover:bg-slate-700 border-2 border-dashed border-slate-700 rounded-xl text-sm text-gray-300 transition-colors">
+                <label className="cursor-pointer block relative overflow-hidden">
+                  <div className={`flex items-center justify-center gap-2 py-6 bg-slate-800 hover:bg-slate-700 border-2 border-dashed border-slate-700 rounded-xl text-sm text-gray-300 transition-colors ${sellerInfo.bannerUrl ? 'bg-cover bg-center' : ''}`} style={sellerInfo.bannerUrl ? { backgroundImage: `url(${sellerInfo.bannerUrl})` } : undefined}>
                     <ArrowUpTrayIcon className="w-5 h-5" />
-                    Subir banner
+                    {sellerInfo.bannerUrl ? "Cambiar banner" : "Subir banner"}
                   </div>
                   <input type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
-                </label>
-              {bannerUploading && (
-                <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center z-10">
+                {bannerUploading && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 </div>
               )}
-              {bannerError && (
-                <div className="absolute top-0 left-0 w-full h-full bg-black/50 rounded-full flex items-center justify-center text-white text-sm z-10">
+                {bannerError && (
+                <div className="absolute top-0 left-0 w-full h-full bg-black/50 flex items-center justify-center text-white text-sm z-10 px-3">
                   {bannerError}
                 </div>
               )}
-              {bannerSuccess && (
-                <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 rounded-full flex items-center justify-center text-green-400 text-sm z-10">
+                {bannerSuccess && (
+                <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 flex items-center justify-center text-green-400 text-sm z-10">
                   Banner actualizado
                 </div>
               )}
-            </div>
+                </label>
+              </div>
 
               <div className="border-t border-slate-800 pt-6">
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Información de la tienda</h3>

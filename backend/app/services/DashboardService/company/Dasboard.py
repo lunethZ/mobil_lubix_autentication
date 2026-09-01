@@ -72,6 +72,8 @@ def company_dashboard_me_service(user_id, database: Session):
         "tellCompany": user.tell,
         "memberAT": user.created_at,
         "role": role.name,
+        "logo": company.CompanyLogo,
+        "banner": company.CompanyBanner,
         "sales": metrics["completeSales"],
         "totalRevenue": metrics["totalRevenue"],
         "stars": metrics["averageRating"],
@@ -94,6 +96,8 @@ def company_dashboard_my_profile_service(user_id: str, database: Session):
         "addressCompany": company.addressCompany,
         "tellCompany": user.tell,
         "memberAT": user.created_at,
+        "logo": company.CompanyLogo,
+        "banner": company.CompanyBanner,
         "averageRating": metrics["averageRating"],
         "totalReviews": metrics["totalReviews"],
         "completeSales": metrics["completeSales"],
@@ -283,13 +287,14 @@ def company_upload_logo_service(user_id: str, file, database: Session):
         raise HTTPException(status_code=500, detail="Error al subir la imagen")
 
     company = user.company
-    company.CompanyLogo = result["path"]
+    company.CompanyLogo = result["object_name"]
     database.commit()
     database.refresh(company)
 
     return {
         "message": "Logo actualizado correctamente",
         "logo": company.CompanyLogo,
+        "url": f"/files/{company.CompanyLogo}",
     }
 
 
@@ -305,11 +310,12 @@ def company_upload_banner_service(user_id: str, file, database: Session):
         raise HTTPException(status_code=500, detail="Error al subir la imagen")
 
     company = user.company
-    company.CompanyBanner = result["path"]
+    company.CompanyBanner = result["object_name"]
     database.commit()
     database.refresh(company)
 
     return {
         "message": "Banner actualizado correctamente",
         "banner": company.CompanyBanner,
+        "url": f"/files/{company.CompanyBanner}",
     }

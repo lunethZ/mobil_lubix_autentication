@@ -44,7 +44,7 @@ export interface CreateOrderInput {
   postal_code?: string;
 }
 
-export type PaymentMethod = "tarjeta" | "pse" | "efectivo";
+export type PaymentMethod = "tarjeta" | "pse";
 
 export const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",

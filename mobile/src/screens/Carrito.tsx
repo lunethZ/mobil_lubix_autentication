@@ -17,6 +17,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { UserTopBar } from "../components/UserTopBar";
 import { formatCOP } from "../utils/format";
+import { resolveImage } from "../utils/image";
 import { COSTO_ENVIO, ENVIO_GRATIS_MIN } from "../constants/shop";
 import type { MainTabParamList, RootStackParamList } from "../navigation/types";
 
@@ -99,7 +100,7 @@ export default function CarritoScreen() {
             renderItem={({ item }) => (
               <View style={[styles.itemCard, { backgroundColor: C.bgCard, borderColor: C.border }]}>
                 {item.image ? (
-                  <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="cover" />
+                  <Image source={{ uri: resolveImage(item.image) }} style={styles.itemImage} resizeMode="cover" />
                 ) : (
                   <View style={[styles.itemImage, styles.imagePlaceholder, { backgroundColor: C.bgSecondary }]}>
                     <Ionicons name="bag" size={22} color={C.muted} />

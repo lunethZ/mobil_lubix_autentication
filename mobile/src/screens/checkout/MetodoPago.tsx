@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type IoniconsType from "@expo/vector-icons/Ionicons";
@@ -25,11 +27,74 @@ type Nav = NativeStackNavigationProp<CheckoutStackParamList, "Pago">;
 
 type PayGlyph = ComponentProps<typeof IoniconsType>["name"];
 
+const BANCOS = [
+  "Bancolombia",
+  "Banco de Bogotá",
+  "BBVA Colombia",
+  "Davivienda",
+  "Banco Popular",
+  "Scotiabank Colpatria",
+  "Nequi",
+  "Banco Agrario",
+];
+
 const METHODS: Array<{ key: PaymentMethod; label: string; icon: PayGlyph }> = [
   { key: "tarjeta", label: "Tarjeta de crédito/débito", icon: "card" },
   { key: "pse", label: "PSE", icon: "business" },
-  { key: "efectivo", label: "Contraentrega", icon: "cash" },
 ];
+
+function detectCardType(num: string): string {
+  const n = num.replace(/\s/g, "");
+  if (/^4/.test(n)) return "Visa";
+  if (/^(5[1-5]|2[2-7])/.test(n)) return "Mastercard";
+  if (/^3[47]/.test(n)) return "Amex";
+  if (/^(30[0-5]|36|38)/.test(n)) return "Diners";
+  return "";
+}
+
+function formatCardNumber(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 16);
+  const type = detectCardType(digits);
+  if (type === "Amex") {
+    return digits
+      .replace(/^(\d{4})(\d{0,6})(\d{0,5})$/, (_, a, b, c) => [a, b, c].filter(Boolean).join(" "));
+  }
+  return digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+}
+
+function formatExpiry(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return digits.slice(0, 2) + "/" + digits.slice(2);
+}
+
+function luhnCheck(num: string): boolean {
+  const digits = num.replace(/\D/g, "");
+  if (digits.length < 13) return false;
+  let sum = 0;
+  let double = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let d = parseInt(digits[i], 10);
+    if (double) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+    double = !double;
+  }
+  return sum % 10 === 0;
+}
+
+function isValidExpiry(exp: string): boolean {
+  const m = exp.match(/^(\d{2})\/(\d{2})$/);
+  if (!m) return false;
+  const month = parseInt(m[1], 10);
+  if (month < 1 || month > 12) return false;
+  const year = 2000 + parseInt(m[2], 10);
+  const now = new Date();
+  const expDate = new Date(year, month, 0);
+  return expDate >= new Date(now.getFullYear(), now.getMonth(), 1);
+}
 
 export default function MetodoPagoScreen() {
   const navigation = useNavigation<Nav>();
@@ -45,18 +110,26 @@ export default function MetodoPagoScreen() {
 
   const [card, setCard] = useState({ number: "", holder: "", expiry: "", cvv: "" });
   const [bank, setBank] = useState("");
+  const [bankOpen, setBankOpen] = useState(false);
   const [error, setError] = useState("");
+
+  const cardType = detectCardType(card.number);
 
   const validate = (): string | null => {
     if (!address) return "Falta la dirección de envío.";
     if (paymentMethod === "tarjeta") {
       const digits = card.number.replace(/\s/g, "");
-      if (digits.length < 12) return "Número de tarjeta inválido.";
+      if (!digits) return "Ingresa el número de la tarjeta.";
+      if (digits.length < 15) return "Número incompleto.";
+      if (!luhnCheck(digits)) return "Número de tarjeta inválido.";
       if (!card.holder.trim()) return "Ingresa el nombre del titular.";
-      if (!/^\d{2}\/\d{2}$/.test(card.expiry)) return "Fecha de vencimiento inválida (MM/AA).";
-      if (card.cvv.trim().length < 3) return "CVV inválido.";
+      if (!card.expiry.trim()) return "La fecha de expiración es obligatoria.";
+      if (!isValidExpiry(card.expiry)) return "Fecha de expiración inválida o expirada.";
+      if (!card.cvv.trim()) return "El CVV es obligatorio.";
+      if (card.cvv.length < (detectCardType(card.number) === "Amex" ? 4 : 3))
+        return "CVV incompleto.";
     }
-    if (paymentMethod === "pse" && !bank.trim()) return "Selecciona tu entidad bancaria.";
+    if (paymentMethod === "pse" && !bank) return "Selecciona tu banco.";
     return null;
   };
 
@@ -81,11 +154,22 @@ export default function MetodoPagoScreen() {
     }
   };
 
+  const selectBank = (name: string) => {
+    setBank(name);
+    setBankOpen(false);
+  };
+
   return (
-    <View style={[styles.screen, { backgroundColor: C.bg }]}>
+    <KeyboardAvoidingView
+      style={[styles.screen, { backgroundColor: C.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <CheckoutHeader step={2} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
         <Text style={[styles.title, { color: C.text }]}>Método de pago</Text>
+        <Text style={[styles.subtitle2, { color: C.textSecondary }]}>
+          Selecciona cómo quieres pagar tu compra.
+        </Text>
 
         {METHODS.map((method) => {
           const active = paymentMethod === method.key;
@@ -112,43 +196,96 @@ export default function MetodoPagoScreen() {
         {paymentMethod === "tarjeta" && (
           <View style={[styles.formCard, { backgroundColor: C.bgCard, borderColor: C.border }]}>
             <Text style={[styles.subtitle, { color: C.text }]}>Datos de la tarjeta</Text>
-            <CardField
-              label="Número de tarjeta"
+
+            <TextField
+              label="Número de tarjeta *"
               value={card.number}
-              onChangeText={(v) => setCard({ ...card, number: v.replace(/[^\d ]/g, "") })}
-              placeholder="1234 5678 9012 3456"
+              onChangeText={(v) => setCard({ ...card, number: formatCardNumber(v) })}
+              placeholder="4111 1111 1111 1111"
               keyboardType="number-pad"
+              badge={cardType || undefined}
             />
-            <CardField label="Titular" value={card.holder} onChangeText={(v) => setCard({ ...card, holder: v })} placeholder="Nombre como aparece en la tarjeta" />
+            <TextField
+              label="Nombre del titular *"
+              value={card.holder}
+              onChangeText={(v) => setCard({ ...card, holder: v })}
+              placeholder="Como aparece en la tarjeta"
+            />
             <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <CardField label="Vencimiento" value={card.expiry} onChangeText={(v) => setCard({ ...card, expiry: v })} placeholder="MM/AA" keyboardType="number-pad" />
+                <TextField
+                  label="Expiración *"
+                  value={card.expiry}
+                  onChangeText={(v) => setCard({ ...card, expiry: formatExpiry(v) })}
+                  placeholder="MM/AA"
+                  keyboardType="number-pad"
+                />
               </View>
               <View style={{ flex: 1 }}>
-                <CardField label="CVV" value={card.cvv} onChangeText={(v) => setCard({ ...card, cvv: v.replace(/[^\d]/g, "") })} placeholder="123" keyboardType="number-pad" secureTextEntry />
+                <TextField
+                  label="CVV *"
+                  value={card.cvv}
+                  onChangeText={(v) =>
+                    setCard({ ...card, cvv: v.replace(/\D/g, "").slice(0, 4) })
+                  }
+                  placeholder={cardType === "Amex" ? "1234" : "123"}
+                  keyboardType="number-pad"
+                  secureTextEntry
+                />
               </View>
             </View>
-            <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 8 }}>
-              Pago simulado: ningún cobro real se realizará en esta demo.
-            </Text>
+            <View style={styles.securityNote}>
+              <Ionicons name="lock-closed" size={13} color={C.textSecondary} />
+              <Text style={{ color: C.textSecondary, fontSize: 11, flex: 1 }}>
+                Tus datos de pago están protegidos y cifrados. No se almacenan en nuestro servidor.
+              </Text>
+            </View>
           </View>
         )}
 
         {paymentMethod === "pse" && (
           <View style={[styles.formCard, { backgroundColor: C.bgCard, borderColor: C.border }]}>
             <Text style={[styles.subtitle, { color: C.text }]}>Entidad bancaria</Text>
-            <CardField label="Banco" value={bank} onChangeText={setBank} placeholder="Ej: Bancolombia, Davivienda..." />
-            <Text style={{ color: C.textSecondary, fontSize: 11, marginTop: 8 }}>
-              Pago simulado por PSE.
+            <Text style={{ color: C.textSecondary, fontSize: 12, marginBottom: 8 }}>
+              Selecciona tu banco *
             </Text>
-          </View>
-        )}
-
-        {paymentMethod === "efectivo" && (
-          <View style={[styles.formCard, { backgroundColor: C.success, borderColor: C.successBorder }]}>
-            <Text style={{ color: C.successText, fontSize: 13, fontWeight: "600" }}>
-              Pagarás en efectivo cuando el pedido llegue a tu puerta.
-            </Text>
+            <TouchableOpacity
+              style={[
+                styles.bankSelect,
+                { backgroundColor: C.inputBg, borderColor: C.inputBorder },
+              ]}
+              onPress={() => setBankOpen(!bankOpen)}
+            >
+              <Text style={{ color: bank ? C.text : C.textSecondary, fontSize: 14, flex: 1 }}>
+                {bank || "-- Elige un banco --"}
+              </Text>
+              <Ionicons name={bankOpen ? "chevron-up" : "chevron-down"} size={18} color={C.textSecondary} />
+            </TouchableOpacity>
+            {bankOpen && (
+              <View style={[styles.bankList, { backgroundColor: C.bgCard, borderColor: C.border }]}>
+                {BANCOS.map((b) => {
+                  const selected = bank === b;
+                  return (
+                    <TouchableOpacity
+                      key={b}
+                      style={[styles.bankOption, { borderBottomColor: C.border }]}
+                      onPress={() => selectBank(b)}
+                    >
+                      <Text style={{ color: selected ? C.accent : C.text, fontWeight: selected ? "700" : "400" }}>
+                        {b}
+                      </Text>
+                      {selected && <Ionicons name="checkmark-circle" size={18} color={C.accent} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+            <View style={styles.securityNote}>
+              <Ionicons name="business" size={13} color={C.textSecondary} />
+              <Text style={{ color: C.textSecondary, fontSize: 11, flex: 1 }}>
+                Serás redirigido a la pasarela de tu banco para autorizar el pago de forma segura.
+              </Text>
+            </View>
           </View>
         )}
 
@@ -156,7 +293,12 @@ export default function MetodoPagoScreen() {
 
         <View style={[styles.summary, { backgroundColor: C.bgCard, borderColor: C.border }]}>
           <View style={styles.sumRow}>
-            <Text style={{ color: C.textSecondary }}>A: {address?.address}, {address?.city}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+              <Ionicons name="location-outline" size={14} color={C.textSecondary} />
+              <Text style={{ color: C.textSecondary, flex: 1 }}>
+                {address?.address}, {address?.city}
+              </Text>
+            </View>
           </View>
           <View style={[styles.sumRow, styles.grand]}>
             <Text style={{ color: C.text, fontSize: 16, fontWeight: "800" }}>Total a pagar</Text>
@@ -172,17 +314,18 @@ export default function MetodoPagoScreen() {
           loading={submitting}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
-function CardField({
+function TextField({
   label,
   value,
   onChangeText,
   placeholder,
   keyboardType,
   secureTextEntry,
+  badge,
 }: {
   label: string;
   value: string;
@@ -190,27 +333,49 @@ function CardField({
   placeholder?: string;
   keyboardType?: "number-pad" | "default";
   secureTextEntry?: boolean;
+  badge?: string;
 }) {
   const { C } = useTheme();
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={{ color: C.textSecondary, fontSize: 12, marginBottom: 5 }}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={C.textSecondary}
-        keyboardType={keyboardType}
-        secureTextEntry={secureTextEntry}
-        style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.inputBorder, color: C.text }]}
-      />
+      <View style={{ position: "relative" }}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={C.textSecondary}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          style={[
+            styles.input,
+            {
+              backgroundColor: C.inputBg,
+              borderColor: C.inputBorder,
+              color: C.text,
+              paddingRight: badge ? 62 : 14,
+            },
+          ]}
+        />
+        {badge ? (
+          <View
+            style={[
+              styles.badge,
+              { position: "absolute", right: 10, top: "50%", marginTop: -11 },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: C.text }]}>{badge}</Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  title: { fontSize: 19, fontWeight: "800", marginBottom: 14 },
+  title: { fontSize: 19, fontWeight: "800", marginBottom: 4 },
+  subtitle2: { fontSize: 13, marginBottom: 14 },
   subtitle: { fontSize: 14, fontWeight: "700", marginBottom: 12 },
   methodCard: {
     borderRadius: 14,
@@ -234,6 +399,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "rgba(127,127,127,0.15)",
+  },
+  badgeText: { fontSize: 11, fontWeight: "700" },
+  bankSelect: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  bankList: {
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 6,
+    overflow: "hidden",
+  },
+  bankOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  securityNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 10,
   },
   summary: { borderRadius: 14, borderWidth: 1, padding: 16, marginTop: 12, gap: 8 },
   sumRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },

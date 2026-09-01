@@ -100,7 +100,7 @@ const ProductoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { addToCart, items } = useCart();
+  const { addToCart } = useCart();
   const [activeImage, setActiveImage] = useState(0);
   const [cartMsg, setCartMsg] = useState(false);
   const [producto, setProducto] = useState<ProductDetail | null>(null);
@@ -205,14 +205,16 @@ const ProductoDetalle: React.FC = () => {
       navigate("/login");
       return;
     }
-    void addToCart({
-      id: producto.id,
-      name: producto.name,
-      price: producto.price,
-      image: producto.images?.[0] || "/placeholder.png",
-      stock: producto.stock,
-      quantity,
-    });
+    void addToCart(
+      {
+        id: producto.id,
+        name: producto.name,
+        price: producto.price,
+        image: producto.images?.[0] || "/placeholder.png",
+        stock: producto.stock,
+      },
+      quantity
+    );
     setCartMsg(true);
     setTimeout(() => setCartMsg(false), 1500);
   };
@@ -439,9 +441,23 @@ const ProductoDetalle: React.FC = () => {
 
             <button
               onClick={() => {
-                const alreadyInCart = items.some(i => String(i.product_id) === String(producto.id) || String(i.id) === String(producto.id));
-                if (!alreadyInCart) handleAddToCart();
-                setTimeout(() => navigate("/pago"), 300);
+                if (!user) {
+                  navigate("/login");
+                  return;
+                }
+                void (async () => {
+                  await addToCart(
+                    {
+                      id: producto.id,
+                      name: producto.name,
+                      price: producto.price,
+                      image: producto.images?.[0] || "/placeholder.png",
+                      stock: producto.stock,
+                    },
+                    quantity
+                  );
+                  navigate("/pago");
+                })();
               }}
               disabled={producto.stock <= 0}
               className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-lg transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"

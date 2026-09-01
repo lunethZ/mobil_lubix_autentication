@@ -75,6 +75,16 @@ export default function DireccionEnvioScreen() {
       return;
     }
     setError("");
+    if (manual) {
+      setAddress({
+        label: form.label || null,
+        address: form.address,
+        city: form.city,
+        department: form.department,
+        postal_code: form.postal_code || null,
+        is_default: false,
+      });
+    }
     navigation.navigate("Pago");
   };
 

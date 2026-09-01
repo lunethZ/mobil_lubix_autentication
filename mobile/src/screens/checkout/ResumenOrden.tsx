@@ -18,6 +18,7 @@ import { useCheckout } from "../../context/CheckoutContext";
 import CheckoutHeader from "../../components/CheckoutHeader";
 import { Button } from "../../components/ui";
 import { formatCOP } from "../../utils/format";
+import { resolveImage } from "../../utils/image";
 import type { CheckoutStackParamList, RootStackParamList } from "../../navigation/types";
 
 type Nav = CompositeNavigationProp<
@@ -58,7 +59,7 @@ export default function ResumenOrdenScreen() {
           {items.map((item) => (
             <View key={item.product_id} style={[styles.itemRow, { borderBottomColor: C.border }]}>
               {item.image ? (
-                <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="cover" />
+                <Image source={{ uri: resolveImage(item.image) }} style={styles.itemImage} resizeMode="cover" />
               ) : (
                 <View style={[styles.itemImage, styles.ph, { backgroundColor: C.bgSecondary }]}>
                   <Ionicons name="bag" size={16} color={C.muted} />

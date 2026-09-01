@@ -30,6 +30,7 @@ import {
 } from "../api/products";
 import { getFavorites, toggleFavorite } from "../api/user";
 import { formatCOP, formatDate } from "../utils/format";
+import { resolveImage } from "../utils/image";
 import { effectivePrice, discountPercent, specList } from "../types/product";
 import type { Product, ProductReview } from "../types/product";
 import type { RootStackParamList } from "../navigation/types";
@@ -186,7 +187,7 @@ export default function ProductoDetalleScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
         {activeUri ? (
-          <Image source={{ uri: activeUri }} style={[styles.hero, { width }]} resizeMode="cover" />
+          <Image source={{ uri: resolveImage(activeUri) }} style={[styles.hero, { width }]} resizeMode="cover" />
         ) : (
           <View style={[styles.hero, styles.heroFallback, { width, backgroundColor: C.bgSecondary }]}>
             <Ionicons name="bag" size={54} color={C.muted} />
@@ -207,7 +208,7 @@ export default function ProductoDetalleScreen() {
                   },
                 ]}
               >
-                <Image source={{ uri }} style={styles.thumbImg} />
+                <Image source={{ uri: resolveImage(uri) }} style={styles.thumbImg} />
               </TouchableOpacity>
             ))}
           </View>

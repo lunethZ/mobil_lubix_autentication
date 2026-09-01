@@ -21,6 +21,7 @@ import { toggleFavorite } from "../api/user";
 import { MainTabParamList, RootStackParamList } from "../navigation/types";
 import { Product } from "../types/product";
 import { formatCOP } from "../utils/format";
+import { resolveImage } from "../utils/image";
 import { Stars } from "./ui";
 import { discountPercent, effectivePrice } from "../types/product";
 
@@ -98,7 +99,7 @@ export function ProductCard({
     >
       <View style={styles.imageWrap}>
         {image ? (
-          <Image source={{ uri: image }} style={styles.image} />
+          <Image source={{ uri: resolveImage(image) }} style={styles.image} />
         ) : (
           <View style={[styles.image, styles.placeholder, { backgroundColor: C.bgSecondary }]}>
             <Ionicons name="bag" size={40} color={C.muted} />

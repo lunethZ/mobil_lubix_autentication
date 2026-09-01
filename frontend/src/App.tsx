@@ -55,25 +55,42 @@ function ProtectedAdminRoute() {
 }
 
 function App() {
-  // Fix: el botón volver no debe mostrar páginas cacheadas con sesión cerrada
-  // Detecta bfcache y fuerza recarga de auth cuando el usuario vuelve con el botón del navegador
+  const { logout } = useAuth();
+
+  // Seguridad: la sesión se cierra automáticamente cuando el usuario
+  // sale de la página (cerrar pestaña/ventana o navegar a otro sitio)
+  // o cuando vuelve con el botón atrás (página restaurada desde bfcache).
   useEffect(() => {
+    const handlePageHide = () => {
+      // Al salir de la página, se borran tokens y datos de usuario
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+      }
+    };
+
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
+        // Volvió con botón atrás/adelante desde bfcache: la sesión ya fue
+        // borrada en pagehide, se sincroniza el estado y se fuerza el login.
+        logout();
         const token = localStorage.getItem("access_token");
         const userStr = localStorage.getItem("user");
         if (!token || !userStr) {
-          // Sesión cerrada pero la página viene de bfcache -> forzar redirección al login si está en ruta protegida
-          const protectedPaths = ["/dashboard", "/home-usuario", "/home-empresa", "/carrito", "/pago", "/productos"];
-          if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
-            window.location.href = "/login";
-          }
+          window.location.href = "/login";
         }
       }
     };
+
+    window.addEventListener("pagehide", handlePageHide);
     window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
-  }, []);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [logout]);
 
   return (
     <Routes>
