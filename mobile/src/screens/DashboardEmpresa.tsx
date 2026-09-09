@@ -157,14 +157,20 @@ export default function DashboardEmpresaScreen() {
   useEffect(() => { fetchAll(); }, []);
 
   const handleAddProduct = async () => {
-    if (!form.name || !form.price || !form.stock) { showMessage("Nombre, precio y stock son obligatorios", "error"); return; }
+    const stockNum = Number(form.stock);
+    const priceNum = parseInt(form.price.replace(/\D/g, "")) || 0;
+    if (!form.name.trim() || form.name.trim().length < 3) { showMessage("El nombre es obligatorio (mínimo 3 caracteres)", "error"); return; }
+    if (!form.price.trim() || priceNum <= 0) { showMessage("El precio debe ser mayor a 0", "error"); return; }
+    if (!form.stock.trim() || !Number.isInteger(stockNum) || stockNum <= 0) { showMessage("El stock debe ser un número entero mayor a 0", "error"); return; }
+    if (!form.category.trim()) { showMessage("Selecciona una categoría", "error"); return; }
+    if (!form.description.trim() || form.description.trim().length < 10) { showMessage("La descripción es obligatoria (mínimo 10 caracteres)", "error"); return; }
     setActionLoading("add");
     try {
       await api.post("/company/products", {
-        name: form.name,
-        price: parseInt(form.price.replace(/\D/g, "")) || 0,
-        stock: parseInt(form.stock) || 0,
-        descripcion: form.description || form.name,
+        name: form.name.trim(),
+        price: priceNum,
+        stock: stockNum,
+        descripcion: form.description.trim(),
         catalog_name: form.category || undefined,
         images: [],
         discount_enable: false,

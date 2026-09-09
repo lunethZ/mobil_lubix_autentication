@@ -129,15 +129,28 @@ export default function DashboardAdminScreen() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDisableUser = async (userId: string) => {
     setActionLoading(userId);
     try {
       await api.delete(`/admin/users/${userId}`);
-      showMessage("Usuario eliminado", "success");
+      showMessage("Usuario inhabilitado", "success");
       setDeleteConfirm(null);
       await fetchAll();
     } catch (err: any) {
-      showMessage(err?.response?.data?.detail || "Error al eliminar usuario", "error");
+      showMessage(err?.response?.data?.detail || "Error al inhabilitar usuario", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleActivateUser = async (userId: string) => {
+    setActionLoading(userId);
+    try {
+      await api.patch(`/admin/users/${userId}/activate`);
+      showMessage("Usuario habilitado correctamente", "success");
+      await fetchAll();
+    } catch (err: any) {
+      showMessage(err?.response?.data?.detail || "Error al habilitar usuario", "error");
     } finally {
       setActionLoading(null);
     }
@@ -262,9 +275,19 @@ export default function DashboardAdminScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         <Text style={{ color: C.text, fontWeight: "700", fontSize: 14 }}>{comp.nameCompany}</Text>
-                        <View style={{ backgroundColor: comp.verified ? "#22c55e" + "20" : "#eab308" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                          <Text style={{ color: comp.verified ? "#22c55e" : "#eab308", fontSize: 10, fontWeight: "700" }}>{comp.verified ? "Validada" : "Pendiente"}</Text>
-                        </View>
+                        {!comp.isActive ? (
+                          <View style={{ backgroundColor: "#ef4444" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ color: "#ef4444", fontSize: 10, fontWeight: "700" }}>Inhabilitada</Text>
+                          </View>
+                        ) : comp.verified ? (
+                          <View style={{ backgroundColor: "#22c55e" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ color: "#22c55e", fontSize: 10, fontWeight: "700" }}>Validada</Text>
+                          </View>
+                        ) : (
+                          <View style={{ backgroundColor: "#eab308" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ color: "#eab308", fontSize: 10, fontWeight: "700" }}>Pendiente</Text>
+                          </View>
+                        )}
                       </View>
                       <Text style={{ color: C.textSecondary, fontSize: 12, marginTop: 2 }}>NIT: {comp.nit}-{comp.nitDV}</Text>
                       <Text style={{ color: C.textSecondary, fontSize: 12 }}>📍 {comp.addressCompany}</Text>
@@ -305,15 +328,32 @@ export default function DashboardAdminScreen() {
                       <Text style={{ color: C.textSecondary, fontSize: 12, marginTop: 2 }}>📧 {u.email}</Text>
                       <Text style={{ color: C.textSecondary, fontSize: 12 }}>📱 {u.tell || "-"}</Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-                        <View style={{ backgroundColor: u.verified ? "#22c55e" + "20" : "#eab308" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                          <Text style={{ color: u.verified ? "#22c55e" : "#eab308", fontSize: 10, fontWeight: "700" }}>{u.verified ? "Activo" : "Sin verificar"}</Text>
-                        </View>
+                        {!u.isActive && (
+                          <View style={{ backgroundColor: "#ef4444" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ color: "#ef4444", fontSize: 10, fontWeight: "700" }}>Inhabilitado</Text>
+                          </View>
+                        )}
+                        {u.verified && u.isActive ? (
+                          <View style={{ backgroundColor: "#22c55e" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ color: "#22c55e", fontSize: 10, fontWeight: "700" }}>Activo</Text>
+                          </View>
+                        ) : u.isActive ? (
+                          <View style={{ backgroundColor: "#eab308" + "20", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ color: "#eab308", fontSize: 10, fontWeight: "700" }}>Sin verificar</Text>
+                          </View>
+                        ) : null}
                         <Text style={{ color: C.textSecondary, fontSize: 11 }}>{new Date(u.memberSince).toLocaleDateString("es-CO")}</Text>
                       </View>
                     </View>
-                    <TouchableOpacity style={{ backgroundColor: C.error, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }} onPress={() => setDeleteConfirm(u.id)}>
-                      <Text style={{ color: "#fff", fontWeight: "700", fontSize: 11 }}>Eliminar</Text>
-                    </TouchableOpacity>
+                    {u.isActive ? (
+                      <TouchableOpacity style={{ backgroundColor: C.error, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }} onPress={() => setDeleteConfirm(u.id)}>
+                        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 11 }}>Inhabilitar</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity style={{ backgroundColor: "#22c55e", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }} onPress={() => handleActivateUser(u.id)} disabled={actionLoading === u.id}>
+                        {actionLoading === u.id ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "700", fontSize: 11 }}>Reactivar</Text>}
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               ))
@@ -365,11 +405,11 @@ export default function DashboardAdminScreen() {
         <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: 20, zIndex: 30 }}>
           <View style={{ backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.error, borderRadius: 16, padding: 24, alignItems: "center" }}>
             <Text style={{ fontSize: 34, marginBottom: 8 }}>⚠️</Text>
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: "800", marginBottom: 4 }}>¿Eliminar usuario?</Text>
-            <Text style={{ color: C.textSecondary, fontSize: 13, textAlign: "center", marginBottom: 16 }}>Esta acción no se puede deshacer. Se eliminarán también sus direcciones, pedidos y tokens.</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: "800", marginBottom: 4 }}>¿Inhabilitar cuenta?</Text>
+            <Text style={{ color: C.textSecondary, fontSize: 13, textAlign: "center", marginBottom: 16 }}>El usuario verá su cuenta como eliminada y no podrá iniciar sesión. Podrás reactivarla desde aquí cuando quieras.</Text>
             <View style={{ flexDirection: "row", gap: 8, width: "100%" }}>
               <View style={{ flex: 1 }}><Button title="Cancelar" variant="secondary" onPress={() => setDeleteConfirm(null)} /></View>
-              <View style={{ flex: 1 }}><Button title="Eliminar" onPress={() => handleDeleteUser(deleteConfirm)} loading={actionLoading === deleteConfirm} style={{ backgroundColor: C.error }} /></View>
+              <View style={{ flex: 1 }}><Button title="Inhabilitar" onPress={() => handleDisableUser(deleteConfirm)} loading={actionLoading === deleteConfirm} style={{ backgroundColor: C.error }} /></View>
             </View>
           </View>
         </View>

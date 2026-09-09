@@ -158,6 +158,9 @@ def login_user_service(user: userLogin, database: Session):
     if not verify_password(user.password, search_user.hashed_password):
         raise HTTPException(status_code=400, detail="contraseña incorrectos")
 
+    if not search_user.isActive:
+        raise HTTPException(status_code=403, detail="Tu cuenta ha sido inhabilitada. Contacta al administrador.")
+
     # Validación de rol: este endpoint es para usuario y admin
     # Solo bloquea empresa (evita que empresa entre como usuario)
     if search_user.role.name == "company":
@@ -200,6 +203,9 @@ def login_company_service(company: LoginCompany, database: Session):
     
     if not verify_password(company.password, search_company.hashed_password):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta")
+
+    if not search_company.isActive:
+        raise HTTPException(status_code=403, detail="Tu cuenta ha sido inhabilitada. Contacta al administrador.")
 
     # Validación de rol: este endpoint solo permite cuentas de empresa
     # Evita que un usuario normal inicie sesión como empresa
@@ -299,8 +305,8 @@ def refresh_token_service(data: RefreshRequest, database: Session):
     
     user = database.query(Users).filter(Users.id == id_user).first()
 
-    if not user:
-        raise HTTPException(status_code=401, detail="Usuario no encontrado...")
+    if not user or not user.isActive:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado o inhabilitado...")
     
     db_token = database.query(RefreshToken).filter(
         RefreshToken.token == data.old_refresh_token,

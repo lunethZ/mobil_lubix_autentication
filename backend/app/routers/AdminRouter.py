@@ -92,7 +92,7 @@ def list_companies(request: Request, database: Session = Depends(get_db)):
     ]
 
 @router.delete("/users/{user_id}")
-def delete_user(user_id: str, request: Request, database: Session = Depends(get_db)):
+def disable_user(user_id: str, request: Request, database: Session = Depends(get_db)):
     user = database.query(Users).filter(Users.id == user_id).first()
 
     if not user:
@@ -100,20 +100,33 @@ def delete_user(user_id: str, request: Request, database: Session = Depends(get_
 
     role_admin = _get_role_id(database, "admin")
     if user.role_id == role_admin:
-        raise HTTPException(status_code=400, detail="No se puede eliminar un administrador")
+        raise HTTPException(status_code=400, detail="No se puede inhabilitar un administrador")
 
-    company = database.query(Company).filter(Company.user_id == user.id).first()
-    if company:
-        database.delete(company)
-
-    database.delete(user)
+    user.isActive = False
+    database.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id,
+        RefreshToken.revoked == False
+    ).update({RefreshToken.revoked: True}, synchronize_session=False)
     database.commit()
 
-    return {"message": "Usuario eliminado correctamente", "id": user_id}
+    return {"message": "Usuario inhabilitado correctamente", "id": user_id, "isActive": user.isActive}
+
+
+@router.patch("/users/{user_id}/activate")
+def activate_user(user_id: str, request: Request, database: Session = Depends(get_db)):
+    user = database.query(Users).filter(Users.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.isActive = True
+    database.commit()
+
+    return {"message": "Usuario habilitado correctamente", "id": user_id, "isActive": user.isActive}
 
 
 @router.delete("/companies/{company_id}")
-def delete_company(company_id: str, request: Request, database: Session = Depends(get_db)):
+def disable_company(company_id: str, request: Request, database: Session = Depends(get_db)):
     company = database.query(Company).filter(Company.id == company_id).first()
 
     if not company:
@@ -126,42 +139,34 @@ def delete_company(company_id: str, request: Request, database: Session = Depend
 
     role_admin = _get_role_id(database, "admin")
     if user.role_id == role_admin:
-        raise HTTPException(status_code=400, detail="No se puede eliminar un administrador")
+        raise HTTPException(status_code=400, detail="No se puede inhabilitar un administrador")
 
-    try:
-        product_ids = [
-            p.id for p in database.query(Product.id).filter(Product.company_id == company.id).all()
-        ]
+    user.isActive = False
+    database.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id,
+        RefreshToken.revoked == False
+    ).update({RefreshToken.revoked: True}, synchronize_session=False)
+    database.commit()
 
-        if product_ids:
-            database.query(OrderItem).filter(OrderItem.product_id.in_(product_ids)).delete(synchronize_session=False)
-            database.query(CartItem).filter(CartItem.product_id.in_(product_ids)).delete(synchronize_session=False)
-            database.query(Favorite).filter(Favorite.product_id.in_(product_ids)).delete(synchronize_session=False)
-            database.query(Review).filter(Review.product_id.in_(product_ids)).delete(synchronize_session=False)
-            database.query(Product).filter(Product.id.in_(product_ids)).delete(synchronize_session=False)
+    return {"message": "Empresa inhabilitada correctamente", "id": company_id, "isActive": user.isActive}
 
-        order_ids = [
-            o.id for o in database.query(Order.id).filter(Order.user_id == user.id).all()
-        ]
-        if order_ids:
-            database.query(OrderItem).filter(OrderItem.order_id.in_(order_ids)).delete(synchronize_session=False)
-            database.query(Order).filter(Order.id.in_(order_ids)).delete(synchronize_session=False)
 
-        database.query(Cart).filter(Cart.user_id == user.id).delete(synchronize_session=False)
-        database.query(Address).filter(Address.user_id == user.id).delete(synchronize_session=False)
-        database.query(Codes).filter(Codes.user_id == user.id).delete(synchronize_session=False)
-        database.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete(synchronize_session=False)
-        database.query(PQRS).filter(PQRS.user_id == user.id).delete(synchronize_session=False)
+@router.patch("/companies/{company_id}/activate")
+def activate_company(company_id: str, request: Request, database: Session = Depends(get_db)):
+    company = database.query(Company).filter(Company.id == company_id).first()
 
-        database.delete(user)
-        database.delete(company)
-        database.commit()
-    except Exception as e:
-        database.rollback()
-        print("ERROR:", e)
-        raise HTTPException(status_code=500, detail="Error al eliminar la empresa")
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
 
-    return {"message": "Empresa eliminada correctamente", "id": company_id}
+    user = database.query(Users).filter(Users.id == company.user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario de la empresa no encontrado")
+
+    user.isActive = True
+    database.commit()
+
+    return {"message": "Empresa habilitada correctamente", "id": company_id, "isActive": user.isActive}
 
 
 @router.patch("/companies/{company_id}/validate")

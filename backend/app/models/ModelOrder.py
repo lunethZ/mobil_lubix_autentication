@@ -54,6 +54,11 @@ class Order(Base):
         nullable=False
     )
 
+    document: Mapped[str] = mapped_column(
+        String(20),
+        nullable=True
+    )
+
     address: Mapped[str] = mapped_column(
         String(150),
         nullable=False

@@ -358,7 +358,7 @@ export default function BuyerDashboard() {
   };
 
   const deleteAccount = async () => {
-    const confirmed = window.confirm("¿Estás seguro de que quieres eliminar tu cuenta? Esta acción es irreversible y borrará todos tus datos, pedidos y direcciones.\n\nSi prefieres, puedes solicitar la eliminación vía PQRS.");
+    const confirmed = window.confirm("¿Estás seguro de que quieres eliminar tu cuenta? Perderás el acceso y no podrás volver a iniciar sesión.\n\nSi necesitas que tus datos se eliminen por completo, puedes solicitar la eliminación vía PQRS.");
     if (!confirmed) return;
     const doubleConfirm = window.prompt("Escribe ELIMINAR para confirmar:");
     if (doubleConfirm !== "ELIMINAR") return;

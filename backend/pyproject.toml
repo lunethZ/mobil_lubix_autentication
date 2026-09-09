@@ -1,7 +1,7 @@
 [project]
 name = "better-backend"
 version = "0.1.0"
-description = "Este backend fue creado por yeinher Algarin"
+description = "Este backend fue creado por LUBIX"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

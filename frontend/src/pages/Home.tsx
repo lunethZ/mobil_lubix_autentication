@@ -244,7 +244,7 @@ const Home: React.FC = () => {
         <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-6">
           {[
             { nombre: "Computadores", icono: <ComputerDesktopIcon className="w-10 h-10" /> },
-            { nombre: "Smartphones", icono: <DevicePhoneMobileIcon className="w-10 h-10" /> },
+            { nombre: "Celulares", icono: <DevicePhoneMobileIcon className="w-10 h-10" /> },
             { nombre: "Audio", icono: <SpeakerWaveIcon className="w-10 h-10" /> },
             { nombre: "Fotografía", icono: <CameraIcon className="w-10 h-10" /> },
             { nombre: "Gaming", icono: <GamepadIcon className="w-10 h-10" /> },

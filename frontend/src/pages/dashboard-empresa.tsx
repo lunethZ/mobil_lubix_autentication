@@ -154,12 +154,14 @@ export default function SellerDashboard() {
   const [bannerSuccess, setBannerSuccess] = useState<boolean | null>(null);
   
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [imagePreview, setImagePreview] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<ProductForm>(EMPTY_FORM);
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
   const [editImagePreview, setEditImagePreview] = useState('');
   const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
   const [editUploading, setEditUploading] = useState(false);
@@ -436,11 +438,83 @@ export default function SellerDashboard() {
     }
   };
 
-  const handleAddProduct = async () => {
-    if (!form.name || !form.price || !form.stock) return;
+  const validateProductForm = (formData: ProductForm, hasImageFile: boolean): Record<string, string> => {
+    const e: Record<string, string> = {};
 
-    const priceNum = parseInt(form.price.replace(/\D/g, '')) || 0;
-    const stockNum = parseInt(form.stock) || 0;
+    if (!formData.name.trim()) {
+      e.name = "El nombre del producto es obligatorio";
+    } else if (formData.name.trim().length < 3) {
+      e.name = "El nombre debe tener al menos 3 caracteres";
+    }
+
+    const priceNum = parseFloat(formData.price.replace(/\D/g, "")) || 0;
+    if (!formData.price.trim()) {
+      e.price = "El precio es obligatorio";
+    } else if (priceNum <= 0) {
+      e.price = "El precio debe ser mayor a 0";
+    }
+
+    const stockNum = Number(formData.stock);
+    if (!formData.stock.trim()) {
+      e.stock = "El stock es obligatorio";
+    } else if (!Number.isInteger(stockNum) || stockNum <= 0) {
+      e.stock = "El stock debe ser un número entero mayor a 0";
+    }
+
+    if (!formData.category.trim()) {
+      e.category = "Selecciona una categoría";
+    }
+
+    if (!formData.description.trim()) {
+      e.description = "La descripción es obligatoria";
+    } else if (formData.description.trim().length < 10) {
+      e.description = "La descripción debe tener al menos 10 caracteres";
+    }
+
+    if (!formData.brand.trim()) {
+      e.brand = "La marca es obligatoria";
+    } else if (formData.brand.trim().length < 2) {
+      e.brand = "La marca debe tener al menos 2 caracteres";
+    }
+
+    if (!formData.model.trim()) {
+      e.model = "El modelo es obligatorio";
+    }
+
+    if (!formData.warranty.trim()) {
+      e.warranty = "La garantía es obligatoria";
+    } else if (!/^\d+$/.test(formData.warranty.trim()) || parseInt(formData.warranty, 10) <= 0) {
+      e.warranty = "La garantía debe ser un número entero mayor a 0";
+    }
+
+    if (!formData.weight.trim()) {
+      e.weight = "El peso es obligatorio";
+    } else if (parseFloat(formData.weight) <= 0) {
+      e.weight = "El peso debe ser mayor a 0";
+    }
+
+    if (!formData.dimensions.trim()) {
+      e.dimensions = "Las dimensiones son obligatorias";
+    } else if (!/^\d+(\.\d+)?\s*x\s*\d+(\.\d+)?\s*x\s*\d+(\.\d+)?(\s*cm)?$/i.test(formData.dimensions.trim())) {
+      e.dimensions = "Dimensiones inválidas. Ej: 15 x 7 x 0.9 cm";
+    }
+
+    if (!hasImageFile && !formData.imageUrl.trim()) {
+      e.image = "La imagen es obligatoria (sube un archivo o pega una URL)";
+    } else if (formData.imageUrl.trim() && !/^https?:\/\/.+/.test(formData.imageUrl.trim())) {
+      e.imageUrl = "La URL de la imagen debe comenzar con http:// o https://";
+    }
+
+    return e;
+  };
+
+  const handleAddProduct = async () => {
+    const errors = validateProductForm(form, !!selectedFile);
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    const priceNum = parseFloat(form.price.replace(/\D/g, '')) || 0;
+    const stockNum = Number(form.stock);
 
     try {
       setUploadingImage(true);
@@ -473,6 +547,7 @@ export default function SellerDashboard() {
       setForm(EMPTY_FORM);
       setImagePreview('');
       setSelectedFile(null);
+      setFormErrors({});
       setShowAddModal(false);
       await fetchDashboardData();
     } catch (err) {
@@ -490,12 +565,13 @@ export default function SellerDashboard() {
       const warrantyNum = (spec.warranty || "").replace(/\D/g, "");
       const weightNum = (spec.weight || "").replace(/[^0-9.]/g, "");
       setEditingId(productId);
+      const originalDescription = (p.descripcion || "").split(" · ")[0] || (p.descripcion || "");
       setEditForm({
         name: p.name || "",
         price: String(p.price || ""),
         stock: String(p.stock || ""),
         category: p.catalog_name || "",
-        description: p.descripcion || "",
+        description: originalDescription,
         brand: spec.brand || "",
         model: spec.model || "",
         warranty: warrantyNum,
@@ -505,6 +581,7 @@ export default function SellerDashboard() {
       });
       setEditImagePreview(p.images?.[0] ? resolveImageUrl(p.images[0]) : "");
       setEditSelectedFile(null);
+      setEditFormErrors({});
       setShowEditModal(true);
     } catch (err) {
       console.error("Error loading product:", err);
@@ -540,9 +617,13 @@ export default function SellerDashboard() {
   };
 
   const handleUpdateProduct = async () => {
-    if (!editingId || !editForm.name || !editForm.price || !editForm.stock) return;
-    const priceNum = parseInt(editForm.price.replace(/\D/g, '')) || 0;
-    const stockNum = parseInt(editForm.stock) || 0;
+    if (!editingId) return;
+    const errors = validateProductForm(editForm, !!editSelectedFile);
+    setEditFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    const priceNum = parseFloat(editForm.price.replace(/\D/g, '')) || 0;
+    const stockNum = Number(editForm.stock);
     try {
       setEditUploading(true);
       let finalImage = editForm.imageUrl.trim();
@@ -569,6 +650,7 @@ export default function SellerDashboard() {
       setShowEditModal(false);
       setEditingId(null);
       setEditForm(EMPTY_FORM);
+      setEditFormErrors({});
       setEditImagePreview('');
       setEditSelectedFile(null);
       await fetchDashboardData();
@@ -733,7 +815,7 @@ export default function SellerDashboard() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white">Mis Productos <span className="text-gray-500 font-normal text-base">({products.length})</span></h2>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => { setShowAddModal(true); setFormErrors({}); }}
                 className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-green-500/30 hover:shadow-green-500/50"
               >
                 <PlusIcon className="w-5 h-5" />
@@ -747,7 +829,7 @@ export default function SellerDashboard() {
                 <p className="text-lg font-medium">No tienes productos aún</p>
                 <p className="text-sm mt-1">Agrega tu primer producto para empezar a vender</p>
                 <button
-                  onClick={() => setShowAddModal(true)}
+                  onClick={() => { setShowAddModal(true); setFormErrors({}); }}
                   className="mt-4 inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-white px-5 py-2.5 rounded-xl font-semibold transition-all"
                 >
                   <PlusIcon className="w-5 h-5" />
@@ -1136,7 +1218,7 @@ export default function SellerDashboard() {
                 Agregar nuevo producto
               </h2>
               <button
-                onClick={() => { setShowAddModal(false); setForm(EMPTY_FORM); setImagePreview(''); setSelectedFile(null); }}
+                onClick={() => { setShowAddModal(false); setForm(EMPTY_FORM); setImagePreview(''); setSelectedFile(null); setFormErrors({}); }}
                 className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -1147,7 +1229,7 @@ export default function SellerDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Imagen del producto <span className="text-gray-500 font-normal">(archivo o URL)</span>
+                    Imagen del producto <span className="text-red-400">*</span> <span className="text-gray-500 font-normal">(archivo o URL)</span>
                   </label>
                   <div className="space-y-3 mb-3">
                     <label className="flex items-center justify-center gap-2 w-full bg-slate-800 border-2 border-dashed border-slate-600 hover:border-green-500 hover:bg-slate-700/50 text-gray-300 hover:text-white rounded-lg px-3 py-3 text-sm cursor-pointer transition text-center">
@@ -1164,6 +1246,8 @@ export default function SellerDashboard() {
                         className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors"
                       />
                     </div>
+                    {formErrors.image && !formErrors.imageUrl && <p className="text-xs text-red-400 mt-1">{formErrors.image}</p>}
+                    {formErrors.imageUrl && <p className="text-xs text-red-400 mt-1">{formErrors.imageUrl}</p>}
                     {uploadingImage && <p className="text-xs text-green-400 animate-pulse">Subiendo imagen...</p>}
                   </div>
                   <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-800 border-2 border-dashed border-slate-700 flex items-center justify-center relative">
@@ -1194,6 +1278,7 @@ export default function SellerDashboard() {
                       onChange={(e) => handleFormChange('name', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors"
                     />
+                    {formErrors.name && <p className="text-xs text-red-400 mt-1">{formErrors.name}</p>}
                   </div>
 
                   <div>
@@ -1207,6 +1292,7 @@ export default function SellerDashboard() {
                       onChange={(e) => handleFormChange('price', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors"
                     />
+                    {formErrors.price && <p className="text-xs text-red-400 mt-1">{formErrors.price}</p>}
                   </div>
 
                   <div>
@@ -1215,35 +1301,39 @@ export default function SellerDashboard() {
                     </label>
                     <input
                       type="number"
+                      min="1"
                       placeholder="Ej: 20"
                       value={form.stock}
                       onChange={(e) => handleFormChange('stock', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors"
                     />
+                    {formErrors.stock && <p className="text-xs text-red-400 mt-1">{formErrors.stock}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Categoría</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Categoría <span className="text-red-400">*</span></label>
                     <select
                       value={form.category}
                       onChange={(e) => handleFormChange('category', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors"
                     >
                       <option value="">Selecciona una categoría</option>
+                      <option value="Celulares">Celulares</option>
                       <option value="Computadores">Computadores</option>
-                      <option value="Smartphones">Smartphones</option>
                       <option value="Audio">Audio</option>
-                      <option value="Fotografía">Fotografía</option>
+                      <option value="Wearables">Wearables</option>
                       <option value="Gaming">Gaming</option>
-                      <option value="Tablets">Tablets</option>
+                      <option value="Televisores">Televisores</option>
+                      <option value="Cámaras">Cámaras</option>
                       <option value="Accesorios">Accesorios</option>
                     </select>
+                    {formErrors.category && <p className="text-xs text-red-400 mt-1">{formErrors.category}</p>}
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Descripción</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Descripción <span className="text-red-400">*</span></label>
                 <textarea
                   rows={3}
                   placeholder="Describe las características principales del producto..."
@@ -1251,6 +1341,7 @@ export default function SellerDashboard() {
                   onChange={(e) => handleFormChange('description', e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 transition-colors resize-none"
                 />
+                {formErrors.description && <p className="text-xs text-red-400 mt-1">{formErrors.description}</p>}
               </div>
 
               <div>
@@ -1260,7 +1351,7 @@ export default function SellerDashboard() {
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Marca</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Marca <span className="text-red-400">*</span></label>
                     <input
                       type="text"
                       placeholder="Ej: Samsung"
@@ -1268,9 +1359,10 @@ export default function SellerDashboard() {
                       onChange={(e) => handleFormChange('brand', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 transition-colors"
                     />
+                    {formErrors.brand && <p className="text-xs text-red-400 mt-1">{formErrors.brand}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Modelo</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Modelo <span className="text-red-400">*</span></label>
                     <input
                       type="text"
                       placeholder="Ej: Galaxy S24 Ultra"
@@ -1278,9 +1370,10 @@ export default function SellerDashboard() {
                       onChange={(e) => handleFormChange('model', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 transition-colors"
                     />
+                    {formErrors.model && <p className="text-xs text-red-400 mt-1">{formErrors.model}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Garantía (meses) <span className="text-gray-500 font-normal">solo números</span></label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Garantía (meses) <span className="text-red-400">*</span> <span className="text-gray-500 font-normal">solo números</span></label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1292,9 +1385,10 @@ export default function SellerDashboard() {
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 bg-slate-700 px-2 py-1 rounded">meses</span>
                     </div>
+                    {formErrors.warranty && <p className="text-xs text-red-400 mt-1">{formErrors.warranty}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Peso</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Peso <span className="text-red-400">*</span></label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1306,9 +1400,10 @@ export default function SellerDashboard() {
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">kg</span>
                     </div>
+                    {formErrors.weight && <p className="text-xs text-red-400 mt-1">{formErrors.weight}</p>}
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Dimensiones</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Dimensiones <span className="text-red-400">*</span></label>
                     <input
                       type="text"
                       placeholder="Ej: 15 x 7 x 0.9 cm"
@@ -1316,20 +1411,21 @@ export default function SellerDashboard() {
                       onChange={(e) => handleFormChange('dimensions', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 transition-colors"
                     />
+                    {formErrors.dimensions && <p className="text-xs text-red-400 mt-1">{formErrors.dimensions}</p>}
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => { setShowAddModal(false); setForm(EMPTY_FORM); setImagePreview(''); setSelectedFile(null); }}
+                  onClick={() => { setShowAddModal(false); setForm(EMPTY_FORM); setImagePreview(''); setSelectedFile(null); setFormErrors({}); }}
                   className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl font-medium transition-colors border border-slate-700"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAddProduct}
-                  disabled={!form.name || !form.price || !form.stock || uploadingImage}
+                  disabled={uploadingImage}
                   className="flex-1 py-3 bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-lg shadow-green-500/30"
                 >
                   {uploadingImage ? "Subiendo imagen..." : "Publicar producto"}
@@ -1349,7 +1445,7 @@ export default function SellerDashboard() {
                 Editar producto
               </h2>
               <button
-                onClick={() => { setShowEditModal(false); setEditingId(null); setEditForm(EMPTY_FORM); setEditImagePreview(''); setEditSelectedFile(null); }}
+                onClick={() => { setShowEditModal(false); setEditingId(null); setEditForm(EMPTY_FORM); setEditImagePreview(''); setEditSelectedFile(null); setEditFormErrors({}); }}
                 className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -1360,7 +1456,7 @@ export default function SellerDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Imagen del producto <span className="text-gray-500 font-normal">(archivo o URL)</span>
+                    Imagen del producto <span className="text-red-400">*</span> <span className="text-gray-500 font-normal">(archivo o URL)</span>
                   </label>
                   <div className="space-y-3 mb-3">
                     <label className="flex items-center justify-center gap-2 w-full bg-slate-800 border-2 border-dashed border-slate-600 hover:border-blue-500 hover:bg-slate-700/50 text-gray-300 hover:text-white rounded-lg px-3 py-3 text-sm cursor-pointer transition text-center">
@@ -1377,6 +1473,8 @@ export default function SellerDashboard() {
                         className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
+                    {editFormErrors.image && !editFormErrors.imageUrl && <p className="text-xs text-red-400 mt-1">{editFormErrors.image}</p>}
+                    {editFormErrors.imageUrl && <p className="text-xs text-red-400 mt-1">{editFormErrors.imageUrl}</p>}
                     {editUploading && <p className="text-xs text-blue-400 animate-pulse">Subiendo imagen...</p>}
                   </div>
                   <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-800 border-2 border-dashed border-slate-700 flex items-center justify-center relative">
@@ -1406,6 +1504,7 @@ export default function SellerDashboard() {
                       onChange={(e) => handleEditFormChange('name', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                     />
+                    {editFormErrors.name && <p className="text-xs text-red-400 mt-1">{editFormErrors.name}</p>}
                   </div>
 
                   <div>
@@ -1419,6 +1518,7 @@ export default function SellerDashboard() {
                       onChange={(e) => handleEditFormChange('price', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                     />
+                    {editFormErrors.price && <p className="text-xs text-red-400 mt-1">{editFormErrors.price}</p>}
                   </div>
 
                   <div>
@@ -1427,35 +1527,40 @@ export default function SellerDashboard() {
                     </label>
                     <input
                       type="number"
+                      min="1"
                       placeholder="Ej: 20"
                       value={editForm.stock}
                       onChange={(e) => handleEditFormChange('stock', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                     />
+                    {editFormErrors.stock && <p className="text-xs text-red-400 mt-1">{editFormErrors.stock}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Categoría</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Categoría <span className="text-red-400">*</span></label>
+                    {editForm.category}
                     <select
                       value={editForm.category}
                       onChange={(e) => handleEditFormChange('category', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                     >
                       <option value="">Selecciona una categoría</option>
+                      <option value="Celulares">Celulares</option>
                       <option value="Computadores">Computadores</option>
-                      <option value="Smartphones">Smartphones</option>
                       <option value="Audio">Audio</option>
-                      <option value="Fotografía">Fotografía</option>
+                      <option value="Wearables">Wearables</option>
                       <option value="Gaming">Gaming</option>
-                      <option value="Tablets">Tablets</option>
+                      <option value="Televisores">Televisores</option>
+                      <option value="Cámaras">Cámaras</option>
                       <option value="Accesorios">Accesorios</option>
                     </select>
+                    {editFormErrors.category && <p className="text-xs text-red-400 mt-1">{editFormErrors.category}</p>}
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Descripción</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Descripción <span className="text-red-400">*</span></label>
                 <textarea
                   rows={3}
                   placeholder="Describe las características principales del producto..."
@@ -1463,6 +1568,7 @@ export default function SellerDashboard() {
                   onChange={(e) => handleEditFormChange('description', e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
                 />
+                {editFormErrors.description && <p className="text-xs text-red-400 mt-1">{editFormErrors.description}</p>}
               </div>
 
               <div>
@@ -1472,7 +1578,7 @@ export default function SellerDashboard() {
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Marca</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Marca <span className="text-red-400">*</span></label>
                     <input
                       type="text"
                       placeholder="Ej: Samsung"
@@ -1480,9 +1586,10 @@ export default function SellerDashboard() {
                       onChange={(e) => handleEditFormChange('brand', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                     />
+                    {editFormErrors.brand && <p className="text-xs text-red-400 mt-1">{editFormErrors.brand}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Modelo</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Modelo <span className="text-red-400">*</span></label>
                     <input
                       type="text"
                       placeholder="Ej: Galaxy S24 Ultra"
@@ -1490,9 +1597,10 @@ export default function SellerDashboard() {
                       onChange={(e) => handleEditFormChange('model', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                     />
+                    {editFormErrors.model && <p className="text-xs text-red-400 mt-1">{editFormErrors.model}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Garantía (meses) <span className="text-gray-500 font-normal">solo números</span></label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Garantía (meses) <span className="text-red-400">*</span> <span className="text-gray-500 font-normal">solo números</span></label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1504,9 +1612,10 @@ export default function SellerDashboard() {
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 bg-slate-700 px-2 py-1 rounded">meses</span>
                     </div>
+                    {editFormErrors.warranty && <p className="text-xs text-red-400 mt-1">{editFormErrors.warranty}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Peso</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Peso <span className="text-red-400">*</span></label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1518,9 +1627,10 @@ export default function SellerDashboard() {
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">kg</span>
                     </div>
+                    {editFormErrors.weight && <p className="text-xs text-red-400 mt-1">{editFormErrors.weight}</p>}
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Dimensiones</label>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Dimensiones <span className="text-red-400">*</span></label>
                     <input
                       type="text"
                       placeholder="Ej: 15 x 7 x 0.9 cm"
@@ -1528,20 +1638,21 @@ export default function SellerDashboard() {
                       onChange={(e) => handleEditFormChange('dimensions', e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                     />
+                    {editFormErrors.dimensions && <p className="text-xs text-red-400 mt-1">{editFormErrors.dimensions}</p>}
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => { setShowEditModal(false); setEditingId(null); setEditForm(EMPTY_FORM); setEditImagePreview(''); setEditSelectedFile(null); }}
+                  onClick={() => { setShowEditModal(false); setEditingId(null); setEditForm(EMPTY_FORM); setEditImagePreview(''); setEditSelectedFile(null); setEditFormErrors({}); }}
                   className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl font-medium transition-colors border border-slate-700"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleUpdateProduct}
-                  disabled={!editForm.name || !editForm.price || !editForm.stock || editUploading}
+                  disabled={editUploading}
                   className="flex-1 py-3 bg-blue-500 hover:bg-blue-400 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/30"
                 >
                   {editUploading ? "Guardando..." : "Guardar cambios"}

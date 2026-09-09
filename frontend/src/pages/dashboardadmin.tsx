@@ -106,9 +106,9 @@ export default function DashboardAdminPage() {
     }
   };
 
-  const handleDeleteUser = async (user: UserItem) => {
+  const handleDisableUser = async (user: UserItem) => {
     const confirmed = window.confirm(
-      `¿Eliminar al usuario "${user.fullName}" (${user.email})?\n\nEsta acción no se puede deshacer. Se eliminarán también sus direcciones, pedidos y tokens asociados.`
+      `¿Inhabilitar al usuario "${user.fullName}" (${user.email})?\n\nVerá su cuenta como eliminada y no podrá volver a iniciar sesión. Podrás reactivarla desde aquí cuando quieras.`
     );
     if (!confirmed) return;
 
@@ -118,16 +118,30 @@ export default function DashboardAdminPage() {
       const [statsRes, companiesRes, usersRes, pqrsRes] = await reloadData();
       applyData(statsRes.data, companiesRes.data, usersRes.data, pqrsRes.data);
     } catch (err) {
-      console.error("Error deleting user:", err);
-      setError("No se pudo eliminar el usuario.");
+      console.error("Error disabling user:", err);
+      setError("No se pudo inhabilitar el usuario.");
     } finally {
       setDeletingId(null);
     }
   };
 
-  const handleDeleteCompany = async (company: CompanyItem) => {
+  const handleActivateUser = async (user: UserItem) => {
+    setDeletingId(user.id);
+    try {
+      await api.patch(`/admin/users/${user.id}/activate`);
+      const [statsRes, companiesRes, usersRes, pqrsRes] = await reloadData();
+      applyData(statsRes.data, companiesRes.data, usersRes.data, pqrsRes.data);
+    } catch (err) {
+      console.error("Error activating user:", err);
+      setError("No se pudo reactivar el usuario.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDisableCompany = async (company: CompanyItem) => {
     const confirmed = window.confirm(
-      `¿Eliminar la empresa "${company.nameCompany}" (${company.email})?\n\nEsta acción no se puede deshacer. Se eliminarán sus productos, pedidos y la cuenta del dueño.`
+      `¿Inhabilitar la empresa "${company.nameCompany}" (${company.email})?\n\nSu cuenta se mostrará como inhabilitada y no podrá iniciar sesión. Podrás reactivarla desde aquí cuando quieras.`
     );
     if (!confirmed) return;
 
@@ -137,8 +151,22 @@ export default function DashboardAdminPage() {
       const [statsRes, companiesRes, usersRes, pqrsRes] = await reloadData();
       applyData(statsRes.data, companiesRes.data, usersRes.data, pqrsRes.data);
     } catch (err) {
-      console.error("Error deleting company:", err);
-      setError("No se pudo eliminar la empresa.");
+      console.error("Error disabling company:", err);
+      setError("No se pudo inhabilitar la empresa.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleActivateCompany = async (company: CompanyItem) => {
+    setDeletingId(company.id);
+    try {
+      await api.patch(`/admin/companies/${company.id}/activate`);
+      const [statsRes, companiesRes, usersRes, pqrsRes] = await reloadData();
+      applyData(statsRes.data, companiesRes.data, usersRes.data, pqrsRes.data);
+    } catch (err) {
+      console.error("Error activating company:", err);
+      setError("No se pudo reactivar la empresa.");
     } finally {
       setDeletingId(null);
     }
@@ -333,7 +361,11 @@ export default function DashboardAdminPage() {
                           {new Date(company.memberSince).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
                         <td className="py-3">
-                          {company.verified ? (
+                          {!company.isActive ? (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 whitespace-nowrap">
+                              Inhabilitada
+                            </span>
+                          ) : company.verified ? (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 whitespace-nowrap">
                               Validada
                             </span>
@@ -344,20 +376,37 @@ export default function DashboardAdminPage() {
                           )}
                         </td>
                         <td className="py-3">
-                          <button
-                            onClick={() => handleDeleteCompany(company)}
-                            disabled={deletingId === company.id}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition disabled:opacity-50 whitespace-nowrap"
-                          >
-                            {deletingId === company.id ? (
-                              <span className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 border-2 border-rose-400/30 border-t-rose-400 rounded-full animate-spin"></div>
-                                Eliminando...
-                              </span>
-                            ) : (
-                              "Eliminar"
-                            )}
-                          </button>
+                          {!company.isActive ? (
+                            <button
+                              onClick={() => handleActivateCompany(company)}
+                              disabled={deletingId === company.id}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {deletingId === company.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin"></div>
+                                  Reactivando...
+                                </span>
+                              ) : (
+                                "Reactivar"
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleDisableCompany(company)}
+                              disabled={deletingId === company.id}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {deletingId === company.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 border-2 border-rose-400/30 border-t-rose-400 rounded-full animate-spin"></div>
+                                  Inhabilitando...
+                                </span>
+                              ) : (
+                                "Inhabilitar"
+                              )}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -406,7 +455,11 @@ export default function DashboardAdminPage() {
                           {new Date(u.memberSince).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
                         <td className="py-3">
-                          {u.verified ? (
+                          {!u.isActive ? (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 whitespace-nowrap">
+                              Inhabilitado
+                            </span>
+                          ) : u.verified ? (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 whitespace-nowrap">
                               Activo
                             </span>
@@ -417,20 +470,37 @@ export default function DashboardAdminPage() {
                           )}
                         </td>
                         <td className="py-3">
-                          <button
-                            onClick={() => handleDeleteUser(u)}
-                            disabled={deletingId === u.id}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition disabled:opacity-50 whitespace-nowrap"
-                          >
-                            {deletingId === u.id ? (
-                              <span className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 border-2 border-rose-400/30 border-t-rose-400 rounded-full animate-spin"></div>
-                                Eliminando...
-                              </span>
-                            ) : (
-                              "Eliminar"
-                            )}
-                          </button>
+                          {!u.isActive ? (
+                            <button
+                              onClick={() => handleActivateUser(u)}
+                              disabled={deletingId === u.id}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {deletingId === u.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin"></div>
+                                  Reactivando...
+                                </span>
+                              ) : (
+                                "Reactivar"
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleDisableUser(u)}
+                              disabled={deletingId === u.id}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {deletingId === u.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 border-2 border-rose-400/30 border-t-rose-400 rounded-full animate-spin"></div>
+                                  Inhabilitando...
+                                </span>
+                              ) : (
+                                "Inhabilitar"
+                              )}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

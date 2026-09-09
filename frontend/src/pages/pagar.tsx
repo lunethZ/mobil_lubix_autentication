@@ -82,6 +82,28 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+const DIRECCION_TIPOS = [
+  "calle", "cra", "carrera", "cl", "cr",
+  "av", "avenida", "autopista", "via", "vía",
+  "transversal", "tv", "diagonal", "dg", "circular", "cg",
+  "calzada", "camino", "pasaje", "sector", "vereda", "manzana", "mz",
+  "casa", "apartamento", "apto", "edificio", "lote", "km", "finca",
+];
+
+function isValidDireccion(dir: string): boolean {
+  const d = dir.trim().toLowerCase();
+  if (d.length < 8) return false;
+  const words = d.split(/\s+/);
+  const tipoIndex = words.findIndex((w) =>
+    DIRECCION_TIPOS.includes(w.replace(/[.,]$/, ""))
+  );
+  if (tipoIndex === -1) return false;
+  const resto = words.slice(tipoIndex).join(" ");
+  const tieneNumero = /\d/.test(resto);
+  if (!tieneNumero) return false;
+  return /^[a-záéíóúñü0-9\s#,;.\-º°_/()]*$/i.test(d);
+}
+
 function isValidExpiry(exp: string): boolean {
   const m = exp.match(/^(\d{2})\/(\d{2})$/);
   if (!m) return false;
@@ -196,9 +218,15 @@ const PagarPage = () => {
     else if (!isValidEmail(envio.email)) e.email = "Correo no válido";
     if (!envio.telefono.trim()) e.telefono = "El teléfono es obligatorio";
     else if (envio.telefono.replace(/\D/g, "").length < 7) e.telefono = "Teléfono inválido";
+    const docDigits = envio.documento.replace(/\D/g, "");
+    if (!envio.documento.trim()) e.documento = "El documento de identidad es obligatorio";
+    else if (docDigits.length < 6 || docDigits.length > 10) e.documento = "Documento inválido (6 a 10 dígitos)";
     if (!envio.direccion.trim()) e.direccion = "La dirección es obligatoria";
+    else if (!isValidDireccion(envio.direccion)) e.direccion = "Dirección inválida. Ej: Calle 123 #45-67";
     if (!envio.ciudad.trim()) e.ciudad = "La ciudad es obligatoria";
     if (!envio.departamento.trim()) e.departamento = "El departamento es obligatorio";
+    if (!envio.codigoPostal.trim()) e.codigoPostal = "El código postal es obligatorio";
+    else if (!/^\d{6}$/.test(envio.codigoPostal.trim())) e.codigoPostal = "Código postal inválido (6 dígitos)";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -270,6 +298,7 @@ const PagarPage = () => {
         total,
         payment_method: metodo,
         recipient: envio.nombre,
+        document: envio.documento,
         address: `${envio.direccion}`,
         city: envio.ciudad,
         department: envio.departamento,
@@ -442,8 +471,9 @@ const PagarPage = () => {
                     {errors.nombre && <p className="text-xs text-red-500 mt-1">{errors.nombre}</p>}
                   </div>
                   <div>
-                    <label className="label-base">Documento de identidad</label>
+                    <label className="label-base">Documento de identidad *</label>
                     <input name="documento" value={envio.documento} onChange={handleEnvioChange} className="input-base" placeholder="CC / NIT" />
+                    {errors.documento && <p className="text-xs text-red-500 mt-1">{errors.documento}</p>}
                   </div>
                   <div>
                     <label className="label-base">Email *</label>
@@ -471,8 +501,9 @@ const PagarPage = () => {
                     {errors.departamento && <p className="text-xs text-red-500 mt-1">{errors.departamento}</p>}
                   </div>
                   <div>
-                    <label className="label-base">Código postal</label>
+                    <label className="label-base">Código postal *</label>
                     <input name="codigoPostal" value={envio.codigoPostal} onChange={handleEnvioChange} className="input-base" placeholder="110111" />
+                    {errors.codigoPostal && <p className="text-xs text-red-500 mt-1">{errors.codigoPostal}</p>}
                   </div>
                   <div>
                     <label className="label-base">Notas de entrega</label>
@@ -600,7 +631,7 @@ const PagarPage = () => {
                   <div>
                     <h3 className="font-semibold mb-2 text-sm uppercase tracking-wide text-muted">Destinatario</h3>
                     <p className="text-sm">
-                      {envio.nombre} · {envio.email} · {envio.telefono}
+                      {envio.nombre} · Doc: {envio.documento} · {envio.email} · {envio.telefono}
                     </p>
                     <p className="text-sm text-muted mt-1 flex items-center gap-1">
                       <MapPinIcon className="w-4 h-4" /> {envio.direccion}, {envio.ciudad}, {envio.departamento}

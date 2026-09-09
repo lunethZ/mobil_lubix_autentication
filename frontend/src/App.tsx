@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
 import Login from "./pages/login";
 import Register from "./pages/register";
 import RecoverPassword from "./pages/reset-password";
@@ -55,43 +54,6 @@ function ProtectedAdminRoute() {
 }
 
 function App() {
-  const { logout } = useAuth();
-
-  // Seguridad: la sesión se cierra automáticamente cuando el usuario
-  // sale de la página (cerrar pestaña/ventana o navegar a otro sitio)
-  // o cuando vuelve con el botón atrás (página restaurada desde bfcache).
-  useEffect(() => {
-    const handlePageHide = () => {
-      // Al salir de la página, se borran tokens y datos de usuario
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        localStorage.removeItem("user");
-      }
-    };
-
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        // Volvió con botón atrás/adelante desde bfcache: la sesión ya fue
-        // borrada en pagehide, se sincroniza el estado y se fuerza el login.
-        logout();
-        const token = localStorage.getItem("access_token");
-        const userStr = localStorage.getItem("user");
-        if (!token || !userStr) {
-          window.location.href = "/login";
-        }
-      }
-    };
-
-    window.addEventListener("pagehide", handlePageHide);
-    window.addEventListener("pageshow", handlePageShow);
-    return () => {
-      window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("pageshow", handlePageShow);
-    };
-  }, [logout]);
-
   return (
     <Routes>
       <Route path="/" element={<Home />} />

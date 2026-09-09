@@ -28,12 +28,13 @@ interface ProductResult {
 }
 
 const FALLBACK_CATEGORIES = [
+  "Celulares",
   "Computadores",
-  "Smartphones",
   "Audio",
-  "Fotografía",
+  "Wearables",
   "Gaming",
-  "Tablets",
+  "Televisores",
+  "Cámaras",
   "Accesorios",
 ];
 

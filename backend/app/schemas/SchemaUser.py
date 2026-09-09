@@ -22,6 +22,7 @@ class CreateOrderRequest(BaseModel):
     total: float = 0
     payment_method: str = "efectivo"
     recipient: str
+    document: Optional[str] = None
     address: str
     city: str
     department: str

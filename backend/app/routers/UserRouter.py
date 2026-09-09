@@ -5,6 +5,7 @@ from app.models.ModelUser import Users
 from app.models.ModelAddress import Address
 from app.models.ModelOrder import Order, OrderItem
 from app.models.ModelProduct import Product
+from app.models.ModelRefreshToken import RefreshToken
 from app.services.NasService import subir
 from app.schemas.SchemaUser import (
     UpdateUserProfileRequest,
@@ -102,15 +103,19 @@ def delete_account(request: Request, database: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     try:
-        database.delete(user)
+        user.isActive = False
+        database.query(RefreshToken).filter(
+            RefreshToken.user_id == user.id,
+            RefreshToken.revoked == False
+        ).update({RefreshToken.revoked: True}, synchronize_session=False)
         database.commit()
     except Exception as e:
         database.rollback()
         print("ERROR:", e)
-        raise HTTPException(status_code=500, detail="Error al eliminar la cuenta")
+        raise HTTPException(status_code=500, detail="Error al inhabilitar la cuenta")
 
     return {
-        "message": "Cuenta eliminada correctamente"
+        "message": "Cuenta inhabilitada correctamente"
     }
 
 @router.get("/export")
@@ -338,6 +343,7 @@ def create_order(request: Request, data: CreateOrderRequest, database: Session =
             total=data.total,
             payment_method=data.payment_method,
             recipient=data.recipient,
+            document=data.document,
             address=data.address,
             city=data.city,
             department=data.department,
